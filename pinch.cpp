@@ -30,8 +30,8 @@ enum Action { None, DumpAST };
 }
 
 static cl::opt<enum Action>
-    emitAction("emit", cl::desc("Select the kind of output desired"),
-               cl::values(clEnumValN(DumpAST, "ast", "output the AST dump")));
+emitAction("emit", cl::desc("Select the kind of output desired"),
+           cl::values(clEnumValN(DumpAST, "ast", "output the AST dump")));
 
 /// Returns a Pinch AST resulting from parsing the file or a nullptr on error.
 std::unique_ptr<pinch::ModuleAST> parseInputFile(llvm::StringRef filename) {

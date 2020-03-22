@@ -20,213 +20,236 @@
 
 namespace pinch {
 
-/// Structure definition a location in a file.
-struct Location {
-  std::shared_ptr<std::string> file; ///< filename.
-  int line;                          ///< line number.
-  int col;                           ///< column number.
-};
+  /// Structure definition a location in a file.
+  struct Location {
+    std::shared_ptr<std::string> file; ///< filename.
+    int line;                          ///< line number.
+    int col;                           ///< column number.
+  };
 
-// List of Token returned by the lexer.
-enum Token : int {
-  tok_semicolon = ';',
-  tok_parenthese_open = '(',
-  tok_parenthese_close = ')',
-  tok_bracket_open = '{',
-  tok_bracket_close = '}',
-  tok_sbracket_open = '[',
-  tok_sbracket_close = ']',
+  // List of Token returned by the lexer.
+  enum Token : int {
+    tok_semicolon = ';',
+      tok_parenthese_open = '(',
+      tok_parenthese_close = ')',
+      tok_bracket_open = '{',
+      tok_bracket_close = '}',
+      tok_sbracket_open = '[',
+      tok_sbracket_close = ']',
 
-  tok_eof = -1,
+      // lifetime specific
+      tok_ref = '&',
+      tok_star = '*',
+      tok_mut = 0,
 
-  // commands
-  tok_return = -2,
-  tok_var = -3,
-  tok_def = -4,
+      tok_eof = -1,
 
-  // primary
-  tok_identifier = -5,
-  tok_number = -6,
-};
+      // commands
+      tok_return = -2,
+      tok_let = -3,
+      tok_fn = -4,
 
-/// The Lexer is an abstract base class providing all the facilities that the
-/// Parser expects. It goes through the stream one token at a time and keeps
-/// track of the location in the file for debugging purposes.
-/// It relies on a subclass to provide a `readNextLine()` method. The subclass
-/// can proceed by reading the next line from the standard input or from a
-/// memory mapped file.
-class Lexer {
-public:
-  /// Create a lexer for the given filename. The filename is kept only for
-  /// debugging purposes (attaching a location to a Token).
+      // primary
+      tok_identifier = -5,
+      tok_number = -6,
+      };
+
+  /// The Lexer is an abstract base class providing all the facilities that the
+  /// Parser expects. It goes through the stream one token at a time and keeps
+  /// track of the location in the file for debugging purposes.
+  /// It relies on a subclass to provide a `readNextLine()` method. The subclass
+  /// can proceed by reading the next line from the standard input or from a
+  /// memory mapped file.
+  class Lexer {
+  public:
+    /// Create a lexer for the given filename. The filename is kept only for
+    /// debugging purposes (attaching a location to a Token).
   Lexer(std::string filename)
       : lastLocation(
-            {std::make_shared<std::string>(std::move(filename)), 0, 0}) {}
-  virtual ~Lexer() = default;
+          {std::make_shared<std::string>(std::move(filename)), 0, 0}) {}
+    virtual ~Lexer() = default;
 
-  /// Look at the current token in the stream.
-  Token getCurToken() { return curTok; }
+    /// Look at the current token in the stream.
+    Token getCurToken() { return curTok; }
 
-  /// Move to the next token in the stream and return it.
-  Token getNextToken() { return curTok = getTok(); }
+    /// Move to the next token in the stream and return it.
+    Token getNextToken() { return curTok = getTok(); }
 
-  /// Move to the next token in the stream, asserting on the current token
-  /// matching the expectation.
-  void consume(Token tok) {
-    assert(tok == curTok && "consume Token mismatch expectation");
-    getNextToken();
-  }
-
-  /// Return the current identifier (prereq: getCurToken() == tok_identifier)
-  llvm::StringRef getId() {
-    assert(curTok == tok_identifier);
-    return identifierStr;
-  }
-
-  /// Return the current number (prereq: getCurToken() == tok_number)
-  double getValue() {
-    assert(curTok == tok_number);
-    return numVal;
-  }
-
-  /// Return the location for the beginning of the current token.
-  Location getLastLocation() { return lastLocation; }
-
-  // Return the current line in the file.
-  int getLine() { return curLineNum; }
-
-  // Return the current column in the file.
-  int getCol() { return curCol; }
-
-private:
-  /// Delegate to a derived class fetching the next line. Returns an empty
-  /// string to signal end of file (EOF). Lines are expected to always finish
-  /// with "\n"
-  virtual llvm::StringRef readNextLine() = 0;
-
-  /// Return the next character from the stream. This manages the buffer for the
-  /// current line and request the next line buffer to the derived class as
-  /// needed.
-  int getNextChar() {
-    // The current line buffer should not be empty unless it is the end of file.
-    if (curLineBuffer.empty())
-      return EOF;
-    ++curCol;
-    auto nextchar = curLineBuffer.front();
-    curLineBuffer = curLineBuffer.drop_front();
-    if (curLineBuffer.empty())
-      curLineBuffer = readNextLine();
-    if (nextchar == '\n') {
-      ++curLineNum;
-      curCol = 0;
+    /// Move to the next token in the stream, asserting on the current token
+    /// matching the expectation.
+    void consume(Token tok) {
+      assert(tok == curTok && "consume Token mismatch expectation");
+      getNextToken();
     }
-    return nextchar;
-  }
 
-  ///  Return the next token from standard input.
-  Token getTok() {
-    // Skip any whitespace.
-    while (isspace(lastChar))
+    /// Return the current identifier (prereq: getCurToken() == tok_identifier)
+    llvm::StringRef getId() {
+      assert(curTok == tok_identifier);
+      return identifierStr;
+    }
+
+    /// Return the current number (prereq: getCurToken() == tok_number)
+    double getValue() {
+      assert(curTok == tok_number);
+      return numVal;
+    }
+
+    /// Return the location for the beginning of the current token.
+    Location getLastLocation() { return lastLocation; }
+
+    // Return the current line in the file.
+    int getLine() { return curLineNum; }
+
+    // Return the current column in the file.
+    int getCol() { return curCol; }
+
+  private:
+    /// Delegate to a derived class fetching the next line. Returns an empty
+    /// string to signal end of file (EOF). Lines are expected to always finish
+    /// with "\n"
+    virtual llvm::StringRef readNextLine() = 0;
+
+    /// Return the next character from the stream. This manages the buffer for the
+    /// current line and request the next line buffer to the derived class as
+    /// needed.
+    int getNextChar() {
+      // The current line buffer should not be empty unless it is the end of file.
+      if (curLineBuffer.empty())
+        return EOF;
+      ++curCol;
+      auto nextchar = curLineBuffer.front();
+      curLineBuffer = curLineBuffer.drop_front();
+      if (curLineBuffer.empty())
+        curLineBuffer = readNextLine();
+      if (nextchar == '\n') {
+        ++curLineNum;
+        curCol = 0;
+      }
+      return nextchar;
+    }
+
+    ///  Return the next token from standard input.
+    Token getTok() {
+      // Skip any whitespace.
+      while (isspace(lastChar))
+        lastChar = Token(getNextChar());
+
+      // Save the current location before reading the token characters.
+      lastLocation.line = curLineNum;
+      lastLocation.col = curCol;
+
+      // First lets process any lifetime specific ops
+      // Check for borrowing a reference to something
+      if (lastChar == '&') {
+        // now lets check if it is a mutable borrow
+        if (curLineBuffer.substr(0, 4).equals("mut ")) {
+          // consume all four chars of 'mut '
+          for (int i = 0; i < 4; i++) { curLineBuffer.front(); }
+          return tok_mut;
+        }
+
+        return tok_ref;
+      }
+
+      // check for dereferencing
+      if (lastChar == '*') {
+        return tok_star;
+      }
+
+      // Identifier: [a-zA-Z][a-zA-Z0-9_]*
+      if (isalpha(lastChar)) {
+        identifierStr = (char)lastChar;
+        while (isalnum((lastChar = Token(getNextChar()))) || lastChar == '_')
+          identifierStr += (char)lastChar;
+
+        if (identifierStr == "return")
+          return tok_return;
+        if (identifierStr == "fn")
+          return tok_fn;
+        if (identifierStr == "let")
+          return tok_let;
+        return tok_identifier;
+      }
+
+      // Number: [0-9.]+
+      if (isdigit(lastChar) || lastChar == '.') {
+        std::string numStr;
+        do {
+          numStr += lastChar;
+          lastChar = Token(getNextChar());
+        } while (isdigit(lastChar) || lastChar == '.');
+
+        numVal = strtod(numStr.c_str(), nullptr);
+        return tok_number;
+      }
+
+      if (lastChar == '#') {
+        // Comment until end of line.
+        do {
+          lastChar = Token(getNextChar());
+        } while (lastChar != EOF && lastChar != '\n' && lastChar != '\r');
+
+        if (lastChar != EOF)
+          return getTok();
+      }
+
+      // Check for end of file.  Don't eat the EOF.
+      if (lastChar == EOF)
+        return tok_eof;
+
+      // Otherwise, just return the character as its ascii value.
+      Token thisChar = Token(lastChar);
       lastChar = Token(getNextChar());
-
-    // Save the current location before reading the token characters.
-    lastLocation.line = curLineNum;
-    lastLocation.col = curCol;
-
-    // Identifier: [a-zA-Z][a-zA-Z0-9_]*
-    if (isalpha(lastChar)) {
-      identifierStr = (char)lastChar;
-      while (isalnum((lastChar = Token(getNextChar()))) || lastChar == '_')
-        identifierStr += (char)lastChar;
-
-      if (identifierStr == "return")
-        return tok_return;
-      if (identifierStr == "def")
-        return tok_def;
-      if (identifierStr == "var")
-        return tok_var;
-      return tok_identifier;
+      return thisChar;
     }
 
-    // Number: [0-9.]+
-    if (isdigit(lastChar) || lastChar == '.') {
-      std::string numStr;
-      do {
-        numStr += lastChar;
-        lastChar = Token(getNextChar());
-      } while (isdigit(lastChar) || lastChar == '.');
+    /// The last token read from the input.
+    Token curTok = tok_eof;
 
-      numVal = strtod(numStr.c_str(), nullptr);
-      return tok_number;
-    }
+    /// Location for `curTok`.
+    Location lastLocation;
 
-    if (lastChar == '#') {
-      // Comment until end of line.
-      do {
-        lastChar = Token(getNextChar());
-      } while (lastChar != EOF && lastChar != '\n' && lastChar != '\r');
+    /// If the current Token is an identifier, this string contains the value.
+    std::string identifierStr;
 
-      if (lastChar != EOF)
-        return getTok();
-    }
+    /// If the current Token is a number, this contains the value.
+    double numVal = 0;
 
-    // Check for end of file.  Don't eat the EOF.
-    if (lastChar == EOF)
-      return tok_eof;
+    /// The last value returned by getNextChar(). We need to keep it around as we
+    /// always need to read ahead one character to decide when to end a token and
+    /// we can't put it back in the stream after reading from it.
+    Token lastChar = Token(' ');
 
-    // Otherwise, just return the character as its ascii value.
-    Token thisChar = Token(lastChar);
-    lastChar = Token(getNextChar());
-    return thisChar;
-  }
+    /// Keep track of the current line number in the input stream
+    int curLineNum = 0;
 
-  /// The last token read from the input.
-  Token curTok = tok_eof;
+    /// Keep track of the current column number in the input stream
+    int curCol = 0;
 
-  /// Location for `curTok`.
-  Location lastLocation;
+    /// Buffer supplied by the derived class on calls to `readNextLine()`
+    llvm::StringRef curLineBuffer = "\n";
+  };
 
-  /// If the current Token is an identifier, this string contains the value.
-  std::string identifierStr;
-
-  /// If the current Token is a number, this contains the value.
-  double numVal = 0;
-
-  /// The last value returned by getNextChar(). We need to keep it around as we
-  /// always need to read ahead one character to decide when to end a token and
-  /// we can't put it back in the stream after reading from it.
-  Token lastChar = Token(' ');
-
-  /// Keep track of the current line number in the input stream
-  int curLineNum = 0;
-
-  /// Keep track of the current column number in the input stream
-  int curCol = 0;
-
-  /// Buffer supplied by the derived class on calls to `readNextLine()`
-  llvm::StringRef curLineBuffer = "\n";
-};
-
-/// A lexer implementation operating on a buffer in memory.
-class LexerBuffer final : public Lexer {
-public:
+  /// A lexer implementation operating on a buffer in memory.
+  class LexerBuffer final : public Lexer {
+  public:
   LexerBuffer(const char *begin, const char *end, std::string filename)
       : Lexer(std::move(filename)), current(begin), end(end) {}
 
-private:
-  /// Provide one line at a time to the Lexer, return an empty string when
-  /// reaching the end of the buffer.
-  llvm::StringRef readNextLine() override {
-    auto *begin = current;
-    while (current <= end && *current && *current != '\n')
-      ++current;
-    if (current <= end && *current)
-      ++current;
-    llvm::StringRef result{begin, static_cast<size_t>(current - begin)};
-    return result;
-  }
-  const char *current, *end;
-};
+  private:
+    /// Provide one line at a time to the Lexer, return an empty string when
+    /// reaching the end of the buffer.
+    llvm::StringRef readNextLine() override {
+      auto *begin = current;
+      while (current <= end && *current && *current != '\n')
+        ++current;
+      if (current <= end && *current)
+        ++current;
+      llvm::StringRef result{begin, static_cast<size_t>(current - begin)};
+      return result;
+    }
+    const char *current, *end;
+  };
 } // namespace pinch
 
 #endif // MLIR_TUTORIAL_PINCH_LEXER_H_
