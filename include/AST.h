@@ -15,7 +15,7 @@
 #ifndef MLIR_TUTORIAL_PINCH_AST_H_
 #define MLIR_TUTORIAL_PINCH_AST_H_
 
-#include "pinch/Lexer.h"
+#include "Lexer.h"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
