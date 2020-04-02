@@ -174,8 +174,19 @@ namespace pinch {
       std::string name(lexer.getId());
 
       auto loc = lexer.getLastLocation();
-      lexer.getNextToken(); // eat identifier.
 
+      //TODO check for reference
+      if (lexer.getCurToken() == tok_ref) {
+        lexer.getNextToken(); // eat the current token
+        return std::make_unique<VariableRefExprAST>(std::move(loc), name);
+      }
+
+      if (lexer.getCurToken() == tok_mut) {
+        lexer.getNextToken(); // eat the current token
+        return std::make_unique<VariableMutRefExprAST>(std::move(loc), name);
+      }
+
+      lexer.getNextToken(); // eat identifier.
       if (lexer.getCurToken() != '(') // Simple variable ref.
         return std::make_unique<VariableExprAST>(std::move(loc), name);
 
@@ -223,6 +234,8 @@ namespace pinch {
                      << "' when expecting an expression\n";
         return nullptr;
       case tok_identifier:
+      case tok_ref:
+      case tok_mut:
         return parseIdentifierExpr();
       case tok_number:
         return parseNumberExpr();
@@ -308,15 +321,15 @@ namespace pinch {
       return type;
     }
 
-    /// Parse a variable declaration, it starts with a `var` keyword followed by
+    /// Parse a variable declaration, it starts with a `let` keyword followed by
     /// and identifier and an optional type (shape specification) before the
     /// initializer.
-    /// decl ::= var identifier [ type ] = expr
+    /// decl ::= let identifier [ type ] = expr
     std::unique_ptr<VarDeclExprAST> parseDeclaration() {
-      if (lexer.getCurToken() != tok_var)
-        return parseError<VarDeclExprAST>("var", "to begin declaration");
+      if (lexer.getCurToken() != tok_let)
+        return parseError<VarDeclExprAST>("let", "to begin declaration");
       auto loc = lexer.getLastLocation();
-      lexer.getNextToken(); // eat var
+      lexer.getNextToken(); // eat keyword let
 
       if (lexer.getCurToken() != tok_identifier)
         return parseError<VarDeclExprAST>("identified",
@@ -325,7 +338,7 @@ namespace pinch {
       lexer.getNextToken(); // eat id
 
       std::unique_ptr<VarType> type; // Type is optional, it can be inferred
-      if (lexer.getCurToken() == '<') {
+      if (lexer.getCurToken() == ':') {
         type = parseType();
         if (!type)
           return nullptr;
@@ -357,7 +370,7 @@ namespace pinch {
         lexer.consume(Token(';'));
 
       while (lexer.getCurToken() != '}' && lexer.getCurToken() != tok_eof) {
-        if (lexer.getCurToken() == tok_var) {
+        if (lexer.getCurToken() == tok_let) {
           // Variable declaration
           auto varDecl = parseDeclaration();
           if (!varDecl)
@@ -397,9 +410,9 @@ namespace pinch {
     std::unique_ptr<PrototypeAST> parsePrototype() {
       auto loc = lexer.getLastLocation();
 
-      if (lexer.getCurToken() != tok_def)
+      if (lexer.getCurToken() != tok_fn)
         return parseError<PrototypeAST>("def", "in prototype");
-      lexer.consume(tok_def);
+      lexer.consume(tok_fn);
 
       if (lexer.getCurToken() != tok_identifier)
         return parseError<PrototypeAST>("function name", "in prototype");

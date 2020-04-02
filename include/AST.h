@@ -38,6 +38,8 @@ namespace pinch {
       Expr_Num,
       Expr_Literal,
       Expr_Var,
+      Expr_VarRef,
+      Expr_VarMutRef,
       Expr_BinOp,
       Expr_Call,
       Expr_Print,
@@ -102,6 +104,32 @@ namespace pinch {
 
     /// LLVM style RTTI
     static bool classof(const ExprAST *c) { return c->getKind() == Expr_Var; }
+  };
+  /// Represents an expression taking a shared ref of a variable
+  class VariableRefExprAST : public ExprAST {
+    std::string name;
+
+  public:
+  VariableRefExprAST(Location loc, llvm::StringRef name)
+      : ExprAST(Expr_VarRef, loc), name(name) {}
+
+    llvm::StringRef getName() { return name; }
+
+    /// LLVM style RTTI
+    static bool classof(const ExprAST *c) { return c->getKind() == Expr_VarRef; }
+  };
+  /// Represents an expression taking a mutable ref of a variable
+  class VariableMutRefExprAST : public ExprAST {
+    std::string name;
+
+  public:
+  VariableMutRefExprAST(Location loc, llvm::StringRef name)
+      : ExprAST(Expr_VarMutRef, loc), name(name) {}
+
+    llvm::StringRef getName() { return name; }
+
+    /// LLVM style RTTI
+    static bool classof(const ExprAST *c) { return c->getKind() == Expr_VarMutRef; }
   };
 
   /// Expression class for defining a variable.

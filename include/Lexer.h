@@ -44,6 +44,9 @@ namespace pinch {
 
       tok_eof = -1,
 
+      // type specification
+      tok_colon = ':',
+
       // commands
       tok_return = -2,
       tok_let = -3,
@@ -84,7 +87,7 @@ namespace pinch {
 
     /// Return the current identifier (prereq: getCurToken() == tok_identifier)
     llvm::StringRef getId() {
-      assert(curTok == tok_identifier);
+      assert(curTok == tok_identifier || curTok == tok_ref || curTok == tok_mut);
       return identifierStr;
     }
 
@@ -141,14 +144,20 @@ namespace pinch {
       // First lets process any lifetime specific ops
       // Check for borrowing a reference to something
       if (lastChar == '&') {
+        enum Token ret = tok_ref;
         // now lets check if it is a mutable borrow
         if (curLineBuffer.substr(0, 4).equals("mut ")) {
           // consume all four chars of 'mut '
-          for (int i = 0; i < 4; i++) { curLineBuffer.front(); }
-          return tok_mut;
+          for (int i = 0; i < 4; i++) { getNextChar(); }
+          ret = tok_mut;
         }
 
-        return tok_ref;
+        // Put the variable name in identifierString
+        identifierStr = "";
+        while (isalnum((lastChar = Token(getNextChar()))) || lastChar == '_')
+          identifierStr += (char)lastChar;
+
+        return ret;
       }
 
       // check for dereferencing

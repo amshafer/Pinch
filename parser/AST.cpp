@@ -43,6 +43,8 @@ private:
   void dump(NumberExprAST *num);
   void dump(LiteralExprAST *node);
   void dump(VariableExprAST *node);
+  void dump(VariableRefExprAST *node);
+  void dump(VariableMutRefExprAST *node);
   void dump(ReturnExprAST *node);
   void dump(BinaryExprAST *node);
   void dump(CallExprAST *node);
@@ -78,7 +80,8 @@ template <typename T> static std::string loc(T *node) {
 void ASTDumper::dump(ExprAST *expr) {
   mlir::TypeSwitch<ExprAST *>(expr)
       .Case<BinaryExprAST, CallExprAST, LiteralExprAST, NumberExprAST,
-            PrintExprAST, ReturnExprAST, VarDeclExprAST, VariableExprAST>(
+            PrintExprAST, ReturnExprAST, VarDeclExprAST, VariableRefExprAST,
+            VariableMutRefExprAST, VariableExprAST>(
           [&](auto *node) { this->dump(node); })
       .Default([&](ExprAST *) {
         // No match, fallback to a generic message
@@ -149,6 +152,18 @@ void ASTDumper::dump(LiteralExprAST *node) {
 void ASTDumper::dump(VariableExprAST *node) {
   INDENT();
   llvm::errs() << "var: " << node->getName() << " " << loc(node) << "\n";
+}
+
+/// Print a variable reference (just a name).
+void ASTDumper::dump(VariableMutRefExprAST *node) {
+  INDENT();
+  llvm::errs() << "var ref mut: " << node->getName() << " " << loc(node) << "\n";
+}
+
+/// Print a variable reference (just a name).
+void ASTDumper::dump(VariableRefExprAST *node) {
+  INDENT();
+  llvm::errs() << "var ref: " << node->getName() << " " << loc(node) << "\n";
 }
 
 /// Return statement print the return and its (optional) argument.
