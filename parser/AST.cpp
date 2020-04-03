@@ -151,7 +151,9 @@ void ASTDumper::dump(LiteralExprAST *node) {
 /// Print a variable reference (just a name).
 void ASTDumper::dump(VariableExprAST *node) {
   INDENT();
-  llvm::errs() << "var: " << node->getName() << " " << loc(node) << "\n";
+  llvm::errs() << "var: " << node->getName() << ": ";
+  dump(node->getType());
+  llvm::errs() << loc(node) << "\n";
 }
 
 /// Print a variable reference (just a name).
@@ -208,9 +210,12 @@ void ASTDumper::dump(PrintExprAST *node) {
 
 /// Print type: only the shape is printed in between '<' and '>'
 void ASTDumper::dump(const VarType &type) {
-  llvm::errs() << "<";
-  mlir::interleaveComma(type.shape, llvm::errs());
-  llvm::errs() << ">";
+  if (type.is_ref)
+    llvm::errs() << "&";
+  if (type.type == Type::u32)
+    llvm::errs() << "u32";
+  else if (type.type == Type::null)
+    llvm::errs() << "void";
 }
 
 /// Print a function prototype, first the function name, and then the list of
@@ -221,8 +226,20 @@ void ASTDumper::dump(PrototypeAST *node) {
   indent();
   llvm::errs() << "Params: [";
   mlir::interleaveComma(node->getArgs(), llvm::errs(),
-                        [](auto &arg) { llvm::errs() << arg->getName(); });
-  llvm::errs() << "]\n";
+                        [](auto &arg) {
+                          llvm::errs() << arg->getName() << ": ";
+                          auto type = arg->getType();
+                          if (type.is_ref)
+                            llvm::errs() << "&";
+                          if (type.type == Type::u32)
+                            llvm::errs() << "u32";
+                          else if (type.type == Type::null)
+                            llvm::errs() << "void";
+                        });
+  llvm::errs() << "]'\n";
+  llvm::errs() << "Return type: ";
+  dump(node->getReturnType());
+  llvm::errs() << loc(node) << "\n";
 }
 
 /// Print a function, first the prototype and then the body.

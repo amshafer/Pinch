@@ -24,10 +24,16 @@
 
 namespace pinch {
 
-  /// A variable type with shape information.
-  struct VarType {
-    std::vector<int64_t> shape;
-  };
+/// A variable type with shape information.
+enum Type {
+  null,
+  u32,
+};
+
+struct VarType {
+  Type type;
+  bool is_ref;
+};
 
   /// Base class for all expression nodes.
   class ExprAST {
@@ -95,12 +101,14 @@ namespace pinch {
   /// Expression class for referencing a variable, like "a".
   class VariableExprAST : public ExprAST {
     std::string name;
+    VarType type;
 
   public:
-  VariableExprAST(Location loc, llvm::StringRef name)
-      : ExprAST(Expr_Var, loc), name(name) {}
+    VariableExprAST(Location loc, VarType ty, llvm::StringRef name)
+        : ExprAST(Expr_Var, loc), name(name) { type = ty; }
 
     llvm::StringRef getName() { return name; }
+    const VarType &getType() { return type; }
 
     /// LLVM style RTTI
     static bool classof(const ExprAST *c) { return c->getKind() == Expr_Var; }
@@ -225,16 +233,21 @@ namespace pinch {
   /// function takes).
   class PrototypeAST {
     Location location;
+    VarType return_type;
     std::string name;
     std::vector<std::unique_ptr<VariableExprAST>> args;
 
   public:
   PrototypeAST(Location location, const std::string &name,
+               VarType rt,
                std::vector<std::unique_ptr<VariableExprAST>> args)
-      : location(location), name(name), args(std::move(args)) {}
+      : location(location), name(name), args(std::move(args)) {
+    return_type = rt;
+  }
 
     const Location &loc() { return location; }
     llvm::StringRef getName() const { return name; }
+    const VarType &getReturnType() { return return_type; }
     llvm::ArrayRef<std::unique_ptr<VariableExprAST>> getArgs() { return args; }
   };
 

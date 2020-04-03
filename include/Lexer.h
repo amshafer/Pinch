@@ -55,6 +55,9 @@ namespace pinch {
       // primary
       tok_identifier = -5,
       tok_number = -6,
+
+      tok_arrow = -7,
+      tok_u32 = -8,
       };
 
   /// The Lexer is an abstract base class providing all the facilities that the
@@ -162,7 +165,19 @@ namespace pinch {
 
       // check for dereferencing
       if (lastChar == '*') {
+        // Put the variable name in identifierString
+        identifierStr = "";
+        while (isalnum((lastChar = Token(getNextChar()))) || lastChar == '_')
+          identifierStr += (char)lastChar;
         return tok_star;
+      }
+
+      if (lastChar == '-') {
+        lastChar = Token(getNextChar());
+        if (lastChar == '>') {
+          lastChar = Token(getNextChar());
+          return tok_arrow;
+        }
       }
 
       // Identifier: [a-zA-Z][a-zA-Z0-9_]*
@@ -177,6 +192,8 @@ namespace pinch {
           return tok_fn;
         if (identifierStr == "let")
           return tok_let;
+        if (identifierStr == "u32")
+          return tok_u32;
         return tok_identifier;
       }
 

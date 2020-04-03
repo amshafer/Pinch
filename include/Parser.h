@@ -187,8 +187,15 @@ namespace pinch {
       }
 
       lexer.getNextToken(); // eat identifier.
+
+      // default vartype. We don't care about it since this is
+      // just a reference
+      // TODO: fixme
+      VarType ty;
+      ty.type = Type::null;
+      ty.is_ref = false;
       if (lexer.getCurToken() != '(') // Simple variable ref.
-        return std::make_unique<VariableExprAST>(std::move(loc), name);
+        return std::make_unique<VariableExprAST>(std::move(loc), ty, name);
 
       // This is a function call.
       lexer.consume(Token('('));
@@ -302,21 +309,23 @@ namespace pinch {
     /// type ::= < shape_list >
     /// shape_list ::= num | num , shape_list
     std::unique_ptr<VarType> parseType() {
-      if (lexer.getCurToken() != '<')
-        return parseError<VarType>("<", "to begin type");
-      lexer.getNextToken(); // eat <
-
       auto type = std::make_unique<VarType>();
 
-      while (lexer.getCurToken() == tok_number) {
-        type->shape.push_back(lexer.getValue());
-        lexer.getNextToken();
-        if (lexer.getCurToken() == ',')
-          lexer.getNextToken();
+      if (lexer.getCurToken() == tok_u32) {
+        type->type = Type::u32;
+        type->is_ref = false;
+      } else if (lexer.getCurToken() == tok_ref
+                 || lexer.getCurToken() == tok_mut) {
+        if (lexer.getId() == "u32")
+          type->type = Type::u32;
+        else
+          return parseError<VarType>("u32", "non u32 type");
+
+        type->is_ref = true;
+      } else {
+        return parseError<VarType>("&/u32", "non u32 type");
       }
 
-      if (lexer.getCurToken() != '>')
-        return parseError<VarType>(">", "to end type");
       lexer.getNextToken(); // eat >
       return type;
     }
@@ -411,7 +420,7 @@ namespace pinch {
       auto loc = lexer.getLastLocation();
 
       if (lexer.getCurToken() != tok_fn)
-        return parseError<PrototypeAST>("def", "in prototype");
+        return parseError<PrototypeAST>("fn", "in prototype");
       lexer.consume(tok_fn);
 
       if (lexer.getCurToken() != tok_identifier)
@@ -430,7 +439,18 @@ namespace pinch {
           std::string name(lexer.getId());
           auto loc = lexer.getLastLocation();
           lexer.consume(tok_identifier);
-          auto decl = std::make_unique<VariableExprAST>(std::move(loc), name);
+
+          if (lexer.getCurToken() != ':')
+            return parseError<PrototypeAST>(
+                "identifier", "':' expected, type not specified with");
+          lexer.consume(tok_colon);
+
+          VarType type = *parseType();
+
+          auto decl = std::make_unique<VariableExprAST>(std::move(loc),
+                                                        type,
+                                                        name);
+                                                        
           args.push_back(std::move(decl));
           if (lexer.getCurToken() != ',')
             break;
@@ -445,7 +465,20 @@ namespace pinch {
 
       // success.
       lexer.consume(Token(')'));
+
+      VarType type;
+      type.type = Type::null;
+      type.is_ref = false;
+
+      // find out if there is a return type
+      if (lexer.getCurToken() == tok_arrow) {
+        lexer.getNextToken(); // eat ->
+
+        type = *parseType();
+      }
+
       return std::make_unique<PrototypeAST>(std::move(loc), fnName,
+                                            type,
                                             std::move(args));
     }
 
