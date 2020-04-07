@@ -42,7 +42,6 @@ struct VarType {
       Expr_VarDecl,
       Expr_Return,
       Expr_Num,
-      Expr_Literal,
       Expr_Var,
       Expr_VarRef,
       Expr_VarMutRef,
@@ -69,33 +68,16 @@ struct VarType {
 
   /// Expression class for numeric literals like "1.0".
   class NumberExprAST : public ExprAST {
-    double Val;
+    unsigned int Val;
 
   public:
-  NumberExprAST(Location loc, double val) : ExprAST(Expr_Num, loc), Val(val) {}
+  NumberExprAST(Location loc, unsigned int val)
+	  : ExprAST(Expr_Num, loc), Val(val) {}
 
-    double getValue() { return Val; }
+    unsigned int getValue() { return Val; }
 
     /// LLVM style RTTI
     static bool classof(const ExprAST *c) { return c->getKind() == Expr_Num; }
-  };
-
-  /// Expression class for a literal value.
-  class LiteralExprAST : public ExprAST {
-    std::vector<std::unique_ptr<ExprAST>> values;
-    std::vector<int64_t> dims;
-
-  public:
-  LiteralExprAST(Location loc, std::vector<std::unique_ptr<ExprAST>> values,
-                 std::vector<int64_t> dims)
-      : ExprAST(Expr_Literal, loc), values(std::move(values)),
-        dims(std::move(dims)) {}
-
-    llvm::ArrayRef<std::unique_ptr<ExprAST>> getValues() { return values; }
-    llvm::ArrayRef<int64_t> getDims() { return dims; }
-
-    /// LLVM style RTTI
-    static bool classof(const ExprAST *c) { return c->getKind() == Expr_Literal; }
   };
 
   /// Expression class for referencing a variable, like "a".

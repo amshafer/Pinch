@@ -41,7 +41,6 @@ private:
   void dump(ExprAST *expr);
   void dump(ExprASTList *exprList);
   void dump(NumberExprAST *num);
-  void dump(LiteralExprAST *node);
   void dump(VariableExprAST *node);
   void dump(VariableRefExprAST *node);
   void dump(VariableMutRefExprAST *node);
@@ -79,7 +78,7 @@ template <typename T> static std::string loc(T *node) {
 /// Dispatch to a generic expressions to the appropriate subclass using RTTI
 void ASTDumper::dump(ExprAST *expr) {
   mlir::TypeSwitch<ExprAST *>(expr)
-      .Case<BinaryExprAST, CallExprAST, LiteralExprAST, NumberExprAST,
+      .Case<BinaryExprAST, CallExprAST, NumberExprAST,
             PrintExprAST, ReturnExprAST, VarDeclExprAST, VariableRefExprAST,
             VariableMutRefExprAST, VariableExprAST>(
           [&](auto *node) { this->dump(node); })
@@ -114,38 +113,6 @@ void ASTDumper::dump(ExprASTList *exprList) {
 void ASTDumper::dump(NumberExprAST *num) {
   INDENT();
   llvm::errs() << num->getValue() << " " << loc(num) << "\n";
-}
-
-/// Helper to print recursively a literal. This handles nested array like:
-///    [ [ 1, 2 ], [ 3, 4 ] ]
-/// We print out such array with the dimensions spelled out at every level:
-///    <2,2>[<2>[ 1, 2 ], <2>[ 3, 4 ] ]
-void printLitHelper(ExprAST *litOrNum) {
-  // Inside a literal expression we can have either a number or another literal
-  if (auto num = llvm::dyn_cast<NumberExprAST>(litOrNum)) {
-    llvm::errs() << num->getValue();
-    return;
-  }
-  auto *literal = llvm::cast<LiteralExprAST>(litOrNum);
-
-  // Print the dimension for this literal first
-  llvm::errs() << "<";
-  mlir::interleaveComma(literal->getDims(), llvm::errs());
-  llvm::errs() << ">";
-
-  // Now print the content, recursing on every element of the list
-  llvm::errs() << "[ ";
-  mlir::interleaveComma(literal->getValues(), llvm::errs(),
-                        [&](auto &elt) { printLitHelper(elt.get()); });
-  llvm::errs() << "]";
-}
-
-/// Print a literal, see the recursive helper above for the implementation.
-void ASTDumper::dump(LiteralExprAST *node) {
-  INDENT();
-  llvm::errs() << "Literal: ";
-  printLitHelper(node);
-  llvm::errs() << " " << loc(node) << "\n";
 }
 
 /// Print a variable reference (just a name).
