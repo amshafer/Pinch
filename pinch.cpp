@@ -10,12 +10,21 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Dialect.h"
+#include "MLIRGen.h"
 #include "Parser.h"
+#include <memory>
+
+#include "mlir/Analysis/Verifier.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/Module.h"
+#include "mlir/Parser.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace pinch;
@@ -25,13 +34,23 @@ static cl::opt<std::string> inputFilename(cl::Positional,
                                           cl::desc("<input pinch file>"),
                                           cl::init("-"),
                                           cl::value_desc("filename"));
-namespace {
-enum Action { None, DumpAST };
-}
 
-static cl::opt<enum Action>
-emitAction("emit", cl::desc("Select the kind of output desired"),
-           cl::values(clEnumValN(DumpAST, "ast", "output the AST dump")));
+namespace {
+enum InputType { Pinch, MLIR };
+}
+static cl::opt<enum InputType> inputType(
+    "x", cl::init(Pinch), cl::desc("Decided the kind of output desired"),
+    cl::values(clEnumValN(Pinch, "pinch", "load the input file as a Pinch source.")),
+    cl::values(clEnumValN(MLIR, "mlir",
+                          "load the input file as an MLIR file")));
+
+namespace {
+enum Action { None, DumpAST, DumpMLIR };
+}
+static cl::opt<enum Action> emitAction(
+    "emit", cl::desc("Select the kind of output desired"),
+    cl::values(clEnumValN(DumpAST, "ast", "output the AST dump")),
+    cl::values(clEnumValN(DumpMLIR, "mlir", "output the MLIR dump")));
 
 /// Returns a Pinch AST resulting from parsing the file or a nullptr on error.
 std::unique_ptr<pinch::ModuleAST> parseInputFile(llvm::StringRef filename) {
@@ -47,17 +66,69 @@ std::unique_ptr<pinch::ModuleAST> parseInputFile(llvm::StringRef filename) {
   return parser.parseModule();
 }
 
-int main(int argc, char **argv) {
-  cl::ParseCommandLineOptions(argc, argv, "pinch compiler\n");
+int dumpMLIR() {
+  // Register our Dialect with MLIR.
+  mlir::registerDialect<mlir::pinch::PinchDialect>();
+
+  mlir::MLIRContext context;
+
+  // Handle '.pinch' input to the compiler.
+  if (inputType != InputType::MLIR &&
+      !llvm::StringRef(inputFilename).endswith(".mlir")) {
+    auto moduleAST = parseInputFile(inputFilename);
+    if (!moduleAST)
+      return 6;
+    mlir::OwningModuleRef module = mlirGen(context, *moduleAST);
+    if (!module)
+      return 1;
+
+    module->dump();
+    return 0;
+  }
+
+  // Otherwise, the input is '.mlir'.
+  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr =
+      llvm::MemoryBuffer::getFileOrSTDIN(inputFilename);
+  if (std::error_code EC = fileOrErr.getError()) {
+    llvm::errs() << "Could not open input file: " << EC.message() << "\n";
+    return -1;
+  }
+
+  // Parse the input mlir.
+  llvm::SourceMgr sourceMgr;
+  sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
+  mlir::OwningModuleRef module = mlir::parseSourceFile(sourceMgr, &context);
+  if (!module) {
+    llvm::errs() << "Error can't load file " << inputFilename << "\n";
+    return 3;
+  }
+
+  module->dump();
+  return 0;
+}
+
+int dumpAST() {
+  if (inputType == InputType::MLIR) {
+    llvm::errs() << "Can't dump a Pinch AST when the input is MLIR\n";
+    return 5;
+  }
 
   auto moduleAST = parseInputFile(inputFilename);
   if (!moduleAST)
     return 1;
 
+  dump(*moduleAST);
+  return 0;
+}
+
+int main(int argc, char **argv) {
+  cl::ParseCommandLineOptions(argc, argv, "pinch compiler\n");
+
   switch (emitAction) {
   case Action::DumpAST:
-    dump(*moduleAST);
-    return 0;
+    return dumpAST();
+  case Action::DumpMLIR:
+    return dumpMLIR();
   default:
     llvm::errs() << "No action specified (parsing only?), use -emit=<action>\n";
   }

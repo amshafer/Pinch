@@ -112,6 +112,11 @@ namespace pinch {
         return std::make_unique<VariableRefExprAST>(std::move(loc), name);
       }
 
+      if (lexer.getCurToken() == '*') {
+        lexer.getNextToken(); // eat the current token
+        return std::make_unique<DerefExprAST>(std::move(loc), name);
+      }
+
       if (lexer.getCurToken() == tok_mut) {
         lexer.getNextToken(); // eat the current token
         return std::make_unique<VariableMutRefExprAST>(std::move(loc), name);
@@ -174,6 +179,7 @@ namespace pinch {
       case tok_identifier:
       case tok_ref:
       case tok_mut:
+      case '*':
         return parseIdentifierExpr();
       case tok_number:
         return parseNumberExpr();

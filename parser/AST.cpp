@@ -41,6 +41,7 @@ private:
   void dump(ExprAST *expr);
   void dump(ExprASTList *exprList);
   void dump(NumberExprAST *num);
+  void dump(DerefExprAST *node);
   void dump(VariableExprAST *node);
   void dump(VariableRefExprAST *node);
   void dump(VariableMutRefExprAST *node);
@@ -78,7 +79,7 @@ template <typename T> static std::string loc(T *node) {
 /// Dispatch to a generic expressions to the appropriate subclass using RTTI
 void ASTDumper::dump(ExprAST *expr) {
   mlir::TypeSwitch<ExprAST *>(expr)
-      .Case<BinaryExprAST, CallExprAST, NumberExprAST,
+    .Case<BinaryExprAST, CallExprAST, NumberExprAST, DerefExprAST,
             PrintExprAST, ReturnExprAST, VarDeclExprAST, VariableRefExprAST,
             VariableMutRefExprAST, VariableExprAST>(
           [&](auto *node) { this->dump(node); })
@@ -121,6 +122,12 @@ void ASTDumper::dump(VariableExprAST *node) {
   llvm::errs() << "var: " << node->getName() << ": ";
   dump(node->getType());
   llvm::errs() << loc(node) << "\n";
+}
+
+/// Print a variable reference (just a name).
+void ASTDumper::dump(DerefExprAST *node) {
+  INDENT();
+  llvm::errs() << "var deref: " << node->getName() << " " << loc(node) << "\n";
 }
 
 /// Print a variable reference (just a name).

@@ -49,7 +49,7 @@ def ConstantOp : Pinch_Op<"constant", [NoSideEffect]> {
   }];
 
   // The constant operation takes an attribute as the only input.
-  let arguments = (ins UI32:$value);
+  let arguments = (ins UI32Attr:$value);
 
   // The constant operation returns a single value of TensorType.
   let results = (outs UI32);

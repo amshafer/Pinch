@@ -90,7 +90,8 @@ namespace pinch {
 
     /// Return the current identifier (prereq: getCurToken() == tok_identifier)
     llvm::StringRef getId() {
-      assert(curTok == tok_identifier || curTok == tok_ref || curTok == tok_mut);
+      assert(curTok == tok_identifier || curTok == tok_ref
+	     || curTok == tok_mut || curTok == tok_star);
       return identifierStr;
     }
 

@@ -42,6 +42,7 @@ struct VarType {
       Expr_VarDecl,
       Expr_Return,
       Expr_Num,
+      Expr_Deref,
       Expr_Var,
       Expr_VarRef,
       Expr_VarMutRef,
@@ -78,6 +79,20 @@ struct VarType {
 
     /// LLVM style RTTI
     static bool classof(const ExprAST *c) { return c->getKind() == Expr_Num; }
+  };
+
+  /// Expression class for referencing a variable, like "*a".
+  class DerefExprAST : public ExprAST {
+    std::string name;
+
+  public:
+    DerefExprAST(Location loc, llvm::StringRef name)
+        : ExprAST(Expr_Deref, loc), name(name) { }
+
+    llvm::StringRef getName() { return name; }
+
+    /// LLVM style RTTI
+    static bool classof(const ExprAST *c) { return c->getKind() == Expr_Deref; }
   };
 
   /// Expression class for referencing a variable, like "a".
