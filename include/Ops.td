@@ -109,10 +109,10 @@ def GenericCallOp : Pinch_Op<"generic_call"> {
   // The generic call operation takes a symbol reference attribute as the
     // callee, and inputs for the call.
     // TODO: make ref types
-  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<F64Tensor>:$inputs);
+  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<UI32>:$inputs);
 
   // The generic call operation returns a single value of TensorType.
-  let results = (outs F64Tensor);
+  let results = (outs UI32);
 
   // The return operation only emits the input in the format if it is present.
   let assemblyFormat = [{
