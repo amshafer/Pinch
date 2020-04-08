@@ -348,10 +348,14 @@ private:
   /// getType above).
   mlir::Type getType(const VarType &type, mlir::Location loc) {
     if (type.type == Type::u32) {
-      return mlir::IntegerType::getChecked(32, loc);
+      return mlir::IntegerType::getChecked(32,
+                                           mlir::IntegerType::SignednessSemantics::Unsigned,
+                                           loc);
     } else {
       // TODO: fixme
-      return mlir::IntegerType::getChecked(32, loc);
+      return mlir::IntegerType::getChecked(32,
+                                           mlir::IntegerType::SignednessSemantics::Unsigned,
+                                           loc);
     }
   }
 };

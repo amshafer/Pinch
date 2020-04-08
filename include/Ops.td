@@ -179,7 +179,7 @@ def ReturnOp : Pinch_Op<"return", [NoSideEffect, HasParent<"FuncOp">,
   // The return operation takes an optional input operand to return. This
     // value must match the return type of the enclosing function.
     // TODO: add ref type
-  let arguments = (ins Variadic<F64Tensor>:$input);
+  let arguments = (ins Variadic<UI32>:$input);
 
   // The return operation only emits the input in the format if it is present.
   let assemblyFormat = "($input^ `:` type($input))? attr-dict ";
