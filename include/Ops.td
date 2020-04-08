@@ -29,7 +29,20 @@ def Pinch_Dialect : Dialect {
 //   * The mnemonic for the operation, or the name without the dialect prefix.
 //   * A list of traits for the operation.
 class Pinch_Op<string mnemonic, list<OpTrait> traits = []> :
-    Op<Pinch_Dialect, mnemonic, traits>;
+Op<Pinch_Dialect, mnemonic, traits>;
+
+//===----------------------------------------------------------------------===//
+// Pinch Types
+//===----------------------------------------------------------------------===//
+
+def OwnedType: UI<32>;
+def OwnedAttr: UnsignedIntegerAttrBase<
+        UI32, "32-bit unsigned integer attribute">;
+
+def RefType: MemRefOf<[OwnedType]>;
+def MutRefType: MemRefOf<[OwnedType]>;
+
+def AllowedTypes: AnyTypeOf<[OwnedType, RefType, MutRefType]>;
 
 //===----------------------------------------------------------------------===//
 // Pinch Operations
@@ -49,10 +62,10 @@ def ConstantOp : Pinch_Op<"constant", [NoSideEffect]> {
   }];
 
   // The constant operation takes an attribute as the only input.
-  let arguments = (ins UI32Attr:$value);
+  let arguments = (ins OwnedAttr:$value);
 
   // The constant operation returns a single value of TensorType.
-  let results = (outs UI32);
+  let results = (outs OwnedType);
 
   // Specify a parser and printer method.
   let parser = [{ return ::parseConstantOp(parser, result); }];
@@ -76,8 +89,8 @@ def AddOp : Pinch_Op<"add"> {
     The "add" operation performs element-wise addition between two ints
   }];
 
-  let arguments = (ins UI32:$lhs, UI32:$rhs);
-  let results = (outs UI32);
+  let arguments = (ins OwnedType:$lhs, OwnedType:$rhs);
+  let results = (outs OwnedType);
 
   // Specify a parser and printer method.
   let parser = [{ return ::parseBinaryOp(parser, result); }];
@@ -109,10 +122,9 @@ def GenericCallOp : Pinch_Op<"generic_call"> {
   // The generic call operation takes a symbol reference attribute as the
     // callee, and inputs for the call.
     // TODO: make ref types
-  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<UI32>:$inputs);
+  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<AllowedTypes>:$inputs);
 
-  // The generic call operation returns a single value of TensorType.
-  let results = (outs UI32);
+  let results = (outs AllowedTypes);
 
   // The return operation only emits the input in the format if it is present.
   let assemblyFormat = [{
@@ -133,8 +145,8 @@ def MulOp : Pinch_Op<"mul"> {
     tensors. The shapes of the tensor operands are expected to match.
   }];
 
-  let arguments = (ins UI32:$lhs, UI32:$rhs);
-  let results = (outs UI32);
+  let arguments = (ins OwnedType:$lhs, OwnedType:$rhs);
+  let results = (outs OwnedType);
 
   // Specify a parser and printer method.
   let parser = [{ return ::parseBinaryOp(parser, result); }];
@@ -154,7 +166,7 @@ def PrintOp : Pinch_Op<"print"> {
   }];
 
   // The print operation takes an input tensor to print.
-  let arguments = (ins UI32:$input);
+  let arguments = (ins OwnedType:$input);
 
   let assemblyFormat = "$input attr-dict `:` type($input)";
 }
@@ -179,7 +191,7 @@ def ReturnOp : Pinch_Op<"return", [NoSideEffect, HasParent<"FuncOp">,
   // The return operation takes an optional input operand to return. This
     // value must match the return type of the enclosing function.
     // TODO: add ref type
-  let arguments = (ins Variadic<UI32>:$input);
+  let arguments = (ins Variadic<AllowedTypes>:$input);
 
   // The return operation only emits the input in the format if it is present.
   let assemblyFormat = "($input^ `:` type($input))? attr-dict ";

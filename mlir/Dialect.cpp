@@ -135,7 +135,7 @@ static mlir::LogicalResult verify(ConstantOp op) {
 
 void AddOp::build(mlir::Builder *builder, mlir::OperationState &state,
                   mlir::Value lhs, mlir::Value rhs) {
-  state.addTypes(UnrankedTensorType::get(builder->getF64Type()));
+  state.addTypes(builder->getIntegerType(32, false));
   state.addOperands({lhs, rhs});
 }
 
@@ -155,7 +155,7 @@ void GenericCallOp::build(mlir::Builder *builder, mlir::OperationState &state,
 
 void MulOp::build(mlir::Builder *builder, mlir::OperationState &state,
                   mlir::Value lhs, mlir::Value rhs) {
-  state.addTypes(UnrankedTensorType::get(builder->getF64Type()));
+  state.addTypes(builder->getIntegerType(32, false));
   state.addOperands({lhs, rhs});
 }
 

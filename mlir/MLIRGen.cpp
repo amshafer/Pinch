@@ -240,7 +240,7 @@ private:
     return mlir::success();
   }
 
-  /// Emit a call expression. It emits specific operations for the `transpose`
+  /// Emit a call expression. It emits specific operations for the ``
   /// builtin. Other identifiers are assumed to be user-defined functions.
   mlir::Value mlirGen(CallExprAST &call) {
     llvm::StringRef callee = call.getCallee();
