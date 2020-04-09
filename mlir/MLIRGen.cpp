@@ -92,6 +92,9 @@ private:
   /// scope is destroyed and the mappings created in this scope are dropped.
   llvm::ScopedHashTable<StringRef, mlir::Value> symbolTable;
 
+  /// Map a reference to the type it points to
+  llvm::ScopedHashTable<StringRef, mlir::Type> reftypeTable;
+
   /// Helper conversion for a Pinch AST location to an MLIR location.
   mlir::Location loc(Location loc) {
     return builder.getFileLineColLoc(builder.getIdentifier(*loc.file), loc.line,
@@ -125,6 +128,7 @@ private:
   mlir::FuncOp mlirGen(FunctionAST &funcAST) {
     // Create a scope in the symbol table to hold variable declarations.
     ScopedHashTableScope<llvm::StringRef, mlir::Value> var_scope(symbolTable);
+    ScopedHashTableScope<llvm::StringRef, mlir::Type> ref_scope(reftypeTable);
 
     // Create an MLIR function for the given prototype.
     mlir::FuncOp function(mlirGen(*funcAST.getProto()));
@@ -227,9 +231,10 @@ private:
     auto location = loc(expr.loc());
 
     if (auto variable = symbolTable.lookup(expr.getName())) {
+      auto vartype = mlir::MemRefType::get(makeArrayRef<int64_t>(1),
+                                           variable.getType());
       return builder.create<BorrowOp>(location,
-                                      mlir::MemRefType::get(makeArrayRef<int64_t>(1),
-                                                            variable.getType()),
+                                      vartype,
                                       variable);
     }
 
@@ -241,9 +246,10 @@ private:
     auto location = loc(expr.loc());
 
     if (auto variable = symbolTable.lookup(expr.getName())) {
+      auto vartype = mlir::MemRefType::get(makeArrayRef<int64_t>(1),
+                                           variable.getType());
       return builder.create<BorrowMutOp>(location,
-                                         mlir::MemRefType::get(makeArrayRef<int64_t>(1),
-                                                               variable.getType()),
+                                         vartype,
                                          variable);
     }
 
@@ -256,9 +262,11 @@ private:
     auto location = loc(expr.loc());
 
     if (auto variable = symbolTable.lookup(expr.getName())) {
-      return builder.create<DerefOp>(location,
-                                     variable.getType(),
-                                     variable);
+      if (auto ty = reftypeTable.lookup(expr.getName())) {
+        return builder.create<DerefOp>(location,
+                                       ty,
+                                       variable);
+      }
     }
 
     emitError(loc(expr.loc()), "error: referencing unknown variable '")
@@ -363,12 +371,29 @@ private:
     // Register the value in the symbol table.
     if (failed(declare(vardecl.getName(), value)))
       return nullptr;
+
+    if (init->getKind() == pinch::ExprAST::Expr_VarRef) {
+      auto expr = cast<VariableRefExprAST>(init);
+
+      // make a mapping of what type we point to
+      if (auto variable = symbolTable.lookup(expr->getName())) {
+        reftypeTable.insert(vardecl.getName(), variable.getType());
+      }
+    } else if (init->getKind() == pinch::ExprAST::Expr_VarMutRef) {
+      auto expr = cast<VariableMutRefExprAST>(init);
+
+      // make a mapping of what type we point to
+      if (auto variable = symbolTable.lookup(expr->getName())) {
+        reftypeTable.insert(vardecl.getName(), variable.getType());
+      }
+    }
     return value;
   }
 
   /// Codegen a list of expression, return failure if one of them hit an error.
   mlir::LogicalResult mlirGen(ExprASTList &blockAST) {
     ScopedHashTableScope<StringRef, mlir::Value> var_scope(symbolTable);
+    ScopedHashTableScope<StringRef, mlir::Type> ref_scope(reftypeTable);
     for (auto &expr : blockAST) {
       // Specific handling for variable declarations, return statement, and
       // print. These can only appear in block list and not in nested
