@@ -223,6 +223,8 @@ private:
     return nullptr;
   }
 
+  /// TODO: generate ops for references
+
   /// Emit a return operation. This will return failure if any generation fails.
   mlir::LogicalResult mlirGen(ReturnExprAST &ret) {
     auto location = loc(ret.loc());

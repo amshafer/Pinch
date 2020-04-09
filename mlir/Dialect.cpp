@@ -107,7 +107,7 @@ void ConstantOp::build(mlir::Builder *builder, mlir::OperationState &state,
 /// similarly to the `build` methods described above.
 static mlir::ParseResult parseConstantOp(mlir::OpAsmParser &parser,
                                          mlir::OperationState &result) {
-  mlir::DenseElementsAttr value;
+  mlir::IntegerAttr value;
   if (parser.parseOptionalAttrDict(result.attributes) ||
       parser.parseAttribute(value, "value", result.attributes))
     return failure();
@@ -122,6 +122,8 @@ static void print(mlir::OpAsmPrinter &printer, ConstantOp op) {
   printer << "pinch.constant ";
   printer.printOptionalAttrDict(op.getAttrs(), /*elidedAttrs=*/{"value"});
   printer << op.value();
+  // HACK
+  //printer << " : ui32";
 }
 
 /// Verifier for the constant operation. This corresponds to the `::verify(...)`
