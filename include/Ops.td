@@ -37,8 +37,9 @@ Op<Pinch_Dialect, mnemonic, traits>;
 
 def RefType: MemRefOf<[AnyType]>;
 def MutRefType: MemRefOf<[AnyType]>;
+def AnyRefType: AnyTypeOf<[RefType, MutRefType]>;
 
-def OwnedType: AnyTypeOf<[UI32, RefType, MutRefType]>;
+def OwnedType: AnyTypeOf<[UI32, AnyRefType]>;
 
 //===----------------------------------------------------------------------===//
 // Pinch Operations
@@ -119,6 +120,43 @@ def BorrowOp : Pinch_Op<"borrow"> {
               // TODO add attrs
           }]>
   ];
+}
+
+def BorrowMutOp : Pinch_Op<"borrow_mut"> {
+  let summary = "borrow a mutable reference";
+  let description = [{
+    Borrow a mutable reference to the SSA operand
+  }];
+
+  let arguments = (ins OwnedType:$data);
+  let results = (outs RefType);
+
+  // Specify a parser and printer method.
+  //let parser = [{ return ::parseBinaryOp(parser, result); }];
+  //let printer = [{ return ::printBinaryOp(p, *this); }];
+
+  let builders = [
+      OpBuilder<"Builder *b, OperationState &state, "
+          "MemRefType memrefType, Value data",[{
+              state.types.push_back(memrefType);
+              state.addOperands(data);
+              // TODO add attrs
+          }]>
+  ];
+}
+
+def DerefOp : Pinch_Op<"deref"> {
+  let summary = "dereference a pointer";
+  let description = [{
+      Dereferences a borrow
+  }];
+
+  let arguments = (ins AnyRefType:$data);
+  let results = (outs OwnedType);
+
+  // Specify a parser and printer method.
+  //let parser = [{ return ::parseBinaryOp(parser, result); }];
+  //let printer = [{ return ::printBinaryOp(p, *this); }];
 }
 
 def GenericCallOp : Pinch_Op<"generic_call"> {

@@ -223,7 +223,6 @@ private:
     return nullptr;
   }
 
-  /// TODO: generate ops for references
   mlir::Value mlirGen(VariableRefExprAST &expr) {
     auto location = loc(expr.loc());
 
@@ -232,6 +231,34 @@ private:
                                       mlir::MemRefType::get(makeArrayRef<int64_t>(1),
                                                             variable.getType()),
                                       variable);
+    }
+
+    emitError(loc(expr.loc()), "error: referencing unknown variable '")
+        << expr.getName() << "'";
+    return nullptr;
+  }
+  mlir::Value mlirGen(VariableMutRefExprAST &expr) {
+    auto location = loc(expr.loc());
+
+    if (auto variable = symbolTable.lookup(expr.getName())) {
+      return builder.create<BorrowMutOp>(location,
+                                         mlir::MemRefType::get(makeArrayRef<int64_t>(1),
+                                                               variable.getType()),
+                                         variable);
+    }
+
+    emitError(loc(expr.loc()), "error: referencing unknown variable '")
+        << expr.getName() << "'";
+    return nullptr;
+  }
+
+  mlir::Value mlirGen(DerefExprAST &expr) {
+    auto location = loc(expr.loc());
+
+    if (auto variable = symbolTable.lookup(expr.getName())) {
+      return builder.create<DerefOp>(location,
+                                     variable.getType(),
+                                     variable);
     }
 
     emitError(loc(expr.loc()), "error: referencing unknown variable '")
@@ -301,6 +328,10 @@ private:
       return mlirGen(cast<VariableExprAST>(expr));
     case pinch::ExprAST::Expr_VarRef:
       return mlirGen(cast<VariableRefExprAST>(expr));
+    case pinch::ExprAST::Expr_VarMutRef:
+      return mlirGen(cast<VariableMutRefExprAST>(expr));
+    case pinch::ExprAST::Expr_Deref:
+      return mlirGen(cast<DerefExprAST>(expr));
     case pinch::ExprAST::Expr_Call:
       return mlirGen(cast<CallExprAST>(expr));
     case pinch::ExprAST::Expr_Num:
