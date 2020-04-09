@@ -224,6 +224,20 @@ private:
   }
 
   /// TODO: generate ops for references
+  mlir::Value mlirGen(VariableRefExprAST &expr) {
+    auto location = loc(expr.loc());
+
+    if (auto variable = symbolTable.lookup(expr.getName())) {
+      return builder.create<BorrowOp>(location,
+                                      mlir::MemRefType::get(makeArrayRef<int64_t>(1),
+                                                            variable.getType()),
+                                      variable);
+    }
+
+    emitError(loc(expr.loc()), "error: referencing unknown variable '")
+        << expr.getName() << "'";
+    return nullptr;
+  }
 
   /// Emit a return operation. This will return failure if any generation fails.
   mlir::LogicalResult mlirGen(ReturnExprAST &ret) {
@@ -285,6 +299,8 @@ private:
       return mlirGen(cast<BinaryExprAST>(expr));
     case pinch::ExprAST::Expr_Var:
       return mlirGen(cast<VariableExprAST>(expr));
+    case pinch::ExprAST::Expr_VarRef:
+      return mlirGen(cast<VariableRefExprAST>(expr));
     case pinch::ExprAST::Expr_Call:
       return mlirGen(cast<CallExprAST>(expr));
     case pinch::ExprAST::Expr_Num:

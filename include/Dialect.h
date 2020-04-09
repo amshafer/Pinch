@@ -17,6 +17,7 @@
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/Function.h"
 #include "mlir/Interfaces/SideEffects.h"
+#include "mlir/IR/StandardTypes.h"
 
 namespace mlir {
 namespace pinch {

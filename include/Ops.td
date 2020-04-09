@@ -35,14 +35,10 @@ Op<Pinch_Dialect, mnemonic, traits>;
 // Pinch Types
 //===----------------------------------------------------------------------===//
 
-def OwnedType: UI<32>;
-def OwnedAttr: UnsignedIntegerAttrBase<
-        UI32, "32-bit unsigned integer attribute">;
+def RefType: MemRefOf<[AnyType]>;
+def MutRefType: MemRefOf<[AnyType]>;
 
-def RefType: MemRefOf<[OwnedType]>;
-def MutRefType: MemRefOf<[OwnedType]>;
-
-def AllowedTypes: AnyTypeOf<[OwnedType, RefType, MutRefType]>;
+def OwnedType: AnyTypeOf<[UI32, RefType, MutRefType]>;
 
 //===----------------------------------------------------------------------===//
 // Pinch Operations
@@ -62,7 +58,7 @@ def ConstantOp : Pinch_Op<"constant", [NoSideEffect]> {
   }];
 
   // The constant operation takes an attribute as the only input.
-  let arguments = (ins OwnedAttr:$value);
+  let arguments = (ins UI32Attr:$value);
 
   // The constant operation returns a single value of TensorType.
   let results = (outs OwnedType);
@@ -102,6 +98,29 @@ def AddOp : Pinch_Op<"add"> {
   ];
 }
 
+def BorrowOp : Pinch_Op<"borrow"> {
+  let summary = "borrow a shared reference";
+  let description = [{
+    Borrow a shared reference to the SSA operand
+  }];
+
+  let arguments = (ins OwnedType:$data);
+  let results = (outs RefType);
+
+  // Specify a parser and printer method.
+  //let parser = [{ return ::parseBinaryOp(parser, result); }];
+  //let printer = [{ return ::printBinaryOp(p, *this); }];
+
+  let builders = [
+      OpBuilder<"Builder *b, OperationState &state, "
+          "MemRefType memrefType, Value data",[{
+              state.types.push_back(memrefType);
+              state.addOperands(data);
+              // TODO add attrs
+          }]>
+  ];
+}
+
 def GenericCallOp : Pinch_Op<"generic_call"> {
   let summary = "generic call operation";
   let description = [{
@@ -122,9 +141,9 @@ def GenericCallOp : Pinch_Op<"generic_call"> {
   // The generic call operation takes a symbol reference attribute as the
     // callee, and inputs for the call.
     // TODO: make ref types
-  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<AllowedTypes>:$inputs);
+  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<OwnedType>:$inputs);
 
-  let results = (outs AllowedTypes);
+  let results = (outs OwnedType);
 
   // The return operation only emits the input in the format if it is present.
   let assemblyFormat = [{
@@ -191,7 +210,7 @@ def ReturnOp : Pinch_Op<"return", [NoSideEffect, HasParent<"FuncOp">,
   // The return operation takes an optional input operand to return. This
     // value must match the return type of the enclosing function.
     // TODO: add ref type
-  let arguments = (ins Variadic<AllowedTypes>:$input);
+  let arguments = (ins Variadic<OwnedType>:$input);
 
   // The return operation only emits the input in the format if it is present.
   let assemblyFormat = "($input^ `:` type($input))? attr-dict ";
