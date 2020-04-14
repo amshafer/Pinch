@@ -383,7 +383,12 @@ private:
     if (failed(declare(vardecl.getName(), value)))
       return nullptr;
 
-    if (init->getKind() == pinch::ExprAST::Expr_VarRef) {
+    if (init->getKind() == pinch::ExprAST::Expr_Var) {
+      // Create a move operation since we are moving the
+      // value from init to vardecl
+      return builder.create<MoveOp>(loc(vardecl.loc()), value);
+
+    } else if (init->getKind() == pinch::ExprAST::Expr_VarRef) {
       auto expr = cast<VariableRefExprAST>(init);
 
       // make a mapping of what type we point to

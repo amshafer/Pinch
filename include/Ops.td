@@ -122,6 +122,30 @@ def BorrowOp : Pinch_Op<"borrow"> {
   ];
 }
 
+def MoveOp : Pinch_Op<"move"> {
+  let summary = "Move a value from one variable to another";
+  let description = [{
+      Move a value from src to dst, and store it in an SSA variable
+  }];
+
+  // ins StringAttr:$src, ins StringAttr:$dst
+  let arguments = (ins OwnedType:$data);
+  let results = (outs OwnedType);
+
+  // Specify a parser and printer method.
+  //let parser = [{ return ::parseBinaryOp(parser, result); }];
+  //let printer = [{ return ::printBinaryOp(p, *this); }];
+
+  let builders = [
+      OpBuilder<"Builder *b, OperationState &state, "
+          "Value data",[{
+              state.types.push_back(data.getType());
+              state.addOperands(data);
+              // TODO add attrs
+          }]>
+  ];
+}
+
 def BorrowMutOp : Pinch_Op<"borrow_mut"> {
   let summary = "borrow a mutable reference";
   let description = [{
