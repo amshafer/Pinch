@@ -241,7 +241,7 @@ private:
     return nullptr;
   }
 
-  mlir::Value mlirGen(VariableRefExprAST &expr) {
+  mlir::Value mlirGen(VariableRefExprAST &expr, StringRef dst) {
     auto location = loc(expr.loc());
 
     if (auto variable = symbolTable.lookup(expr.getName())) {
@@ -249,7 +249,9 @@ private:
                                            variable.getType());
       return builder.create<BorrowOp>(location,
                                       vartype,
-                                      variable);
+                                      variable,
+                                      expr.getName(),
+                                      dst);
     }
 
     emitError(loc(expr.loc()), "error: referencing unknown variable '")
@@ -257,7 +259,7 @@ private:
     return nullptr;
   }
 
-  mlir::Value mlirGen(VariableMutRefExprAST &expr) {
+  mlir::Value mlirGen(VariableMutRefExprAST &expr, StringRef dst) {
     auto location = loc(expr.loc());
 
     if (auto variable = symbolTable.lookup(expr.getName())) {
@@ -265,7 +267,9 @@ private:
                                            variable.getType());
       return builder.create<BorrowMutOp>(location,
                                          vartype,
-                                         variable);
+                                         variable,
+                                         expr.getName(),
+                                         dst);
     }
 
     emitError(loc(expr.loc()), "error: referencing unknown variable '")
@@ -273,14 +277,16 @@ private:
     return nullptr;
   }
 
-  mlir::Value mlirGen(DerefExprAST &expr) {
+  mlir::Value mlirGen(DerefExprAST &expr, StringRef dst) {
     auto location = loc(expr.loc());
 
     if (auto variable = symbolTable.lookup(expr.getName())) {
       if (auto ty = reftypeTable.lookup(expr.getName())) {
         return builder.create<DerefOp>(location,
                                        ty,
-                                       variable);
+                                       variable,
+                                       expr.getName(),
+                                       dst);
       }
     }
 
@@ -296,7 +302,8 @@ private:
     // 'return' takes an optional expression, handle that case here.
     mlir::Value expr = nullptr;
     if (ret.getExpr().hasValue()) {
-      if (!(expr = mlirGen(*ret.getExpr().getValue())))
+      StringRef sr("return");
+      if (!(expr = mlirGen(*ret.getExpr().getValue(), sr)))
         return mlir::failure();
     }
 
@@ -379,11 +386,11 @@ private:
     case pinch::ExprAST::Expr_Var:
       return mlirGen(cast<VariableExprAST>(expr));
     case pinch::ExprAST::Expr_VarRef:
-      return mlirGen(cast<VariableRefExprAST>(expr));
+      return mlirGen(cast<VariableRefExprAST>(expr), dst);
     case pinch::ExprAST::Expr_VarMutRef:
-      return mlirGen(cast<VariableMutRefExprAST>(expr));
+      return mlirGen(cast<VariableMutRefExprAST>(expr), dst);
     case pinch::ExprAST::Expr_Deref:
-      return mlirGen(cast<DerefExprAST>(expr));
+      return mlirGen(cast<DerefExprAST>(expr), dst);
     case pinch::ExprAST::Expr_Call:
       return mlirGen(cast<CallExprAST>(expr));
     case pinch::ExprAST::Expr_Num:
@@ -418,9 +425,13 @@ private:
       return nullptr;
 
     if (init->getKind() == pinch::ExprAST::Expr_Var) {
+      auto src = cast<VariableExprAST>(init);
       // Create a move operation since we are moving the
       // value from init to vardecl
-      return builder.create<MoveOp>(loc(vardecl.loc()), value);
+      return builder.create<MoveOp>(loc(vardecl.loc()),
+                                    value,
+                                    src->getName(),
+                                    vardecl.getName());
 
     } else if (init->getKind() == pinch::ExprAST::Expr_VarRef) {
       auto expr = cast<VariableRefExprAST>(init);

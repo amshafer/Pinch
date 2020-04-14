@@ -126,7 +126,7 @@ def BorrowOp : Pinch_Op<"borrow"> {
     Borrow a shared reference to the SSA operand
   }];
 
-  let arguments = (ins OwnedType:$data);
+  let arguments = (ins OwnedType:$data, StrAttr:$src, StrAttr:$dst);
   let results = (outs RefType);
 
   // Specify a parser and printer method.
@@ -135,10 +135,11 @@ def BorrowOp : Pinch_Op<"borrow"> {
 
   let builders = [
       OpBuilder<"Builder *b, OperationState &state, "
-          "MemRefType memrefType, Value data",[{
+          "MemRefType memrefType, Value data, StringRef src, StringRef dst",[{
               state.types.push_back(memrefType);
               state.addOperands(data);
-              // TODO add attrs
+              state.addAttribute("src", b->getStringAttr(src));
+              state.addAttribute("dst", b->getStringAttr(dst));
           }]>
   ];
 }
@@ -150,7 +151,7 @@ def MoveOp : Pinch_Op<"move"> {
   }];
 
   // ins StringAttr:$src, ins StringAttr:$dst
-  let arguments = (ins OwnedType:$data);
+  let arguments = (ins OwnedType:$data, StrAttr:$src, StrAttr:$dst);
   let results = (outs OwnedType);
 
   // Specify a parser and printer method.
@@ -159,10 +160,11 @@ def MoveOp : Pinch_Op<"move"> {
 
   let builders = [
       OpBuilder<"Builder *b, OperationState &state, "
-          "Value data",[{
+          "Value data, StringRef src, StringRef dst",[{
               state.types.push_back(data.getType());
               state.addOperands(data);
-              // TODO add attrs
+              state.addAttribute("src", b->getStringAttr(src));
+              state.addAttribute("dst", b->getStringAttr(dst));
           }]>
   ];
 }
@@ -173,7 +175,7 @@ def BorrowMutOp : Pinch_Op<"borrow_mut"> {
     Borrow a mutable reference to the SSA operand
   }];
 
-  let arguments = (ins OwnedType:$data);
+  let arguments = (ins OwnedType:$data, StrAttr:$src, StrAttr:$dst);
   let results = (outs RefType);
 
   // Specify a parser and printer method.
@@ -182,10 +184,11 @@ def BorrowMutOp : Pinch_Op<"borrow_mut"> {
 
   let builders = [
       OpBuilder<"Builder *b, OperationState &state, "
-          "MemRefType memrefType, Value data",[{
+          "MemRefType memrefType, Value data, StringRef src, StringRef dst",[{
               state.types.push_back(memrefType);
               state.addOperands(data);
-              // TODO add attrs
+              state.addAttribute("src", b->getStringAttr(src));
+              state.addAttribute("dst", b->getStringAttr(dst));
           }]>
   ];
 }
@@ -196,12 +199,12 @@ def DerefOp : Pinch_Op<"deref"> {
       Dereferences a borrow
   }];
 
-  let arguments = (ins AnyRefType:$data);
+  let arguments = (ins AnyRefType:$data, StrAttr:$src, StrAttr:$dst);
   let results = (outs OwnedType);
 
   // Specify a parser and printer method.
   //let parser = [{ return ::parseBinaryOp(parser, result); }];
-  //let printer = [{ return ::printBinaryOp(p, *this); }];
+    //let printer = [{ return ::printBinaryOp(p, *this); }];
 }
 
 def GenericCallOp : Pinch_Op<"generic_call"> {
