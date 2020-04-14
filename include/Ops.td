@@ -59,7 +59,7 @@ def ConstantOp : Pinch_Op<"constant", [NoSideEffect]> {
   }];
 
   // The constant operation takes an attribute as the only input.
-  let arguments = (ins UI32Attr:$value);
+  let arguments = (ins UI32Attr:$value, StrAttr:$dst);
 
   // The constant operation returns a single value of TensorType.
   let results = (outs OwnedType);
@@ -73,7 +73,7 @@ def ConstantOp : Pinch_Op<"constant", [NoSideEffect]> {
   // using `builder.create<ConstantOp>(...)`.
     let builders = [
     // Build a constant with a given constant int
-    OpBuilder<"Builder *builder, OperationState &state, unsigned int value">,
+    OpBuilder<"Builder *builder, OperationState &state, StringRef dst, unsigned int value">,
   ];
 
   // Invoke a static verify method to verify this constant operation.

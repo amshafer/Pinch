@@ -92,10 +92,12 @@ static void printBinaryOp(mlir::OpAsmPrinter &printer, mlir::Operation *op) {
 /// The builder is passed as an argument, so is the state that this method is
 /// expected to fill in order to build the operation.
 void ConstantOp::build(mlir::Builder *builder, mlir::OperationState &state,
-                       unsigned int value) {
-  auto datatype = builder->getIntegerType(32, false);
-  state.addTypes(datatype);
-  state.addAttribute("value", IntegerAttr::get(datatype, value));
+                       StringRef dst, unsigned int value) {
+  auto inttype = builder->getIntegerType(32, false);
+  auto d = builder->getStringAttr(dst);
+  state.addTypes(inttype);
+  state.addAttribute("value", IntegerAttr::get(inttype, value));
+  state.addAttribute("dst", d);
 }
 
 /// The 'OpAsmPrinter' class provides a collection of methods for parsing
@@ -119,9 +121,9 @@ static mlir::ParseResult parseConstantOp(mlir::OpAsmParser &parser,
 /// The 'OpAsmPrinter' class is a stream that will allows for formatting
 /// strings, attributes, operands, types, etc.
 static void print(mlir::OpAsmPrinter &printer, ConstantOp op) {
-  printer << "pinch.constant ";
+  printer << "pinch.constant";
   printer.printOptionalAttrDict(op.getAttrs(), /*elidedAttrs=*/{"value"});
-  printer << op.value();
+  printer << " " << op.value();
   // HACK
   //printer << " : ui32";
 }

@@ -335,7 +335,11 @@ private:
 
   /// Emit a constant for a single number (FIXME: semantic? broadcast?)
   mlir::Value mlirGen(NumberExprAST &num) {
-    return builder.create<ConstantOp>(loc(num.loc()), num.getValue());
+    StringRef name("");
+    return builder.create<ConstantOp>(loc(num.loc()), name, num.getValue());
+  }
+  mlir::Value mlirGen(NumberExprAST &num, StringRef name) {
+    return builder.create<ConstantOp>(loc(num.loc()), name, num.getValue());
   }
 
   /// Dispatch codegen for the right expression subclass using RTTI.
@@ -375,7 +379,13 @@ private:
       return nullptr;
     }
 
-    mlir::Value value = mlirGen(*init);
+    mlir::Value value;
+    if (init->getKind() == pinch::ExprAST::Expr_Num) {
+      auto n = cast<NumberExprAST>(init);
+      value = mlirGen(*n, vardecl.getName());
+    } else {
+      value = mlirGen(*init);
+    }
     if (!value)
       return nullptr;
 
