@@ -120,7 +120,25 @@ private:
     llvm::SmallVector<mlir::Type, 4> arg_types(proto.getArgs().size(),
                                                // TODO calculate type
                                                getType(VarType{}, location));
-    auto func_type = builder.getFunctionType(arg_types, llvm::None);
+
+    ArrayRef<mlir::Type> rt = llvm::None;
+    if (proto.getReturnType().type == pinch::u32) {
+      auto inttype = mlir::IntegerType::getChecked(
+          32,
+          mlir::IntegerType::SignednessSemantics::Unsigned,
+          location);
+
+      if (proto.getReturnType().is_ref) {
+        // TODO is_mut_ref
+        rt = makeArrayRef<mlir::Type>(
+            mlir::MemRefType::get(makeArrayRef<int64_t>(1),
+                                  inttype));
+      } else {
+        rt = makeArrayRef<mlir::Type>(inttype);
+      }
+    }
+
+    auto func_type = builder.getFunctionType(arg_types, rt);
     return mlir::FuncOp::create(location, proto.getName(), func_type);
   }
 
@@ -168,14 +186,6 @@ private:
       returnOp = dyn_cast<ReturnOp>(entryBlock.back());
     if (!returnOp) {
       builder.create<ReturnOp>(loc(funcAST.getProto()->loc()));
-    } else if (returnOp.hasOperand()) {
-      // Otherwise, if this return operation has an operand then add a result to
-      // the function.
-      function.setType(builder.getFunctionType(function.getType().getInputs(),
-                                               getType(
-                                                   VarType{},
-                                                   loc(funcAST.getProto()->loc())
-                                                       )));
     }
 
     return function;
@@ -242,6 +252,7 @@ private:
         << expr.getName() << "'";
     return nullptr;
   }
+
   mlir::Value mlirGen(VariableMutRefExprAST &expr) {
     auto location = loc(expr.loc());
 
