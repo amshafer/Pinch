@@ -39,7 +39,8 @@ def RefType: MemRefOf<[AnyType]>;
 def MutRefType: MemRefOf<[AnyType]>;
 def AnyRefType: AnyTypeOf<[RefType, MutRefType]>;
 
-def OwnedType: AnyTypeOf<[UI32, AnyRefType]>;
+def DataType: AnyTypeOf<[UI32]>;
+def OwnedType: AnyTypeOf<[DataType, AnyRefType]>;
 
 //===----------------------------------------------------------------------===//
 // Pinch Operations
@@ -86,8 +87,8 @@ def AddOp : Pinch_Op<"add"> {
     The "add" operation performs element-wise addition between two ints
   }];
 
-  let arguments = (ins OwnedType:$lhs, OwnedType:$rhs);
-  let results = (outs OwnedType);
+  let arguments = (ins DataType:$lhs, DataType:$rhs, StrAttr:$dst);
+  let results = (outs DataType);
 
   // Specify a parser and printer method.
   let parser = [{ return ::parseBinaryOp(parser, result); }];
@@ -95,7 +96,27 @@ def AddOp : Pinch_Op<"add"> {
 
   // Allow building an AddOp with from the two input operands.
   let builders = [
-    OpBuilder<"Builder *b, OperationState &state, Value lhs, Value rhs">
+    OpBuilder<"Builder *b, OperationState &state, Value lhs, Value rhs, StringRef dst">
+  ];
+}
+
+def MulOp : Pinch_Op<"mul"> {
+  let summary = "element-wise multiplication operation";
+  let description = [{
+    The "mul" operation performs element-wise multiplication between two
+    tensors. The shapes of the tensor operands are expected to match.
+  }];
+
+  let arguments = (ins DataType:$lhs, DataType:$rhs, StrAttr:$dst);
+  let results = (outs DataType);
+
+  // Specify a parser and printer method.
+  let parser = [{ return ::parseBinaryOp(parser, result); }];
+  let printer = [{ return ::printBinaryOp(p, *this); }];
+
+  // Allow building a MulOp with from the two input operands.
+  let builders = [
+    OpBuilder<"Builder *b, OperationState &state, Value lhs, Value rhs, StringRef dst">
   ];
 }
 
@@ -216,26 +237,6 @@ def GenericCallOp : Pinch_Op<"generic_call"> {
   let builders = [
     OpBuilder<"Builder *builder, OperationState &state, "
               "StringRef callee, ArrayRef<Value> arguments">
-  ];
-}
-
-def MulOp : Pinch_Op<"mul"> {
-  let summary = "element-wise multiplication operation";
-  let description = [{
-    The "mul" operation performs element-wise multiplication between two
-    tensors. The shapes of the tensor operands are expected to match.
-  }];
-
-  let arguments = (ins OwnedType:$lhs, OwnedType:$rhs);
-  let results = (outs OwnedType);
-
-  // Specify a parser and printer method.
-  let parser = [{ return ::parseBinaryOp(parser, result); }];
-  let printer = [{ return ::printBinaryOp(p, *this); }];
-
-  // Allow building a MulOp with from the two input operands.
-  let builders = [
-    OpBuilder<"Builder *b, OperationState &state, Value lhs, Value rhs">
   ];
 }
 

@@ -192,7 +192,7 @@ private:
   }
 
   /// Emit a binary operation
-  mlir::Value mlirGen(BinaryExprAST &binop) {
+  mlir::Value mlirGen(BinaryExprAST &binop, StringRef dst) {
     // First emit the operations for each side of the operation before emitting
     // the operation itself. For example if the expression is `a + foo(a)`
     // 1) First it will visiting the LHS, which will return a reference to the
@@ -216,13 +216,17 @@ private:
     // support '+' and '*'.
     switch (binop.getOp()) {
     case '+':
-      return builder.create<AddOp>(location, lhs, rhs);
+      return builder.create<AddOp>(location, lhs, rhs, dst);
     case '*':
-      return builder.create<MulOp>(location, lhs, rhs);
+      return builder.create<MulOp>(location, lhs, rhs, dst);
     }
 
     emitError(location, "invalid binary operator '") << binop.getOp() << "'";
     return nullptr;
+  }
+  mlir::Value mlirGen(BinaryExprAST &binop) {
+    auto d = StringRef("");
+    return mlirGen(binop, d);
   }
 
   /// This is a reference to a variable in an expression. The variable is
@@ -366,6 +370,32 @@ private:
       return nullptr;
     }
   }
+  // Always use this one!
+  // This version handles attribute generation
+  mlir::Value mlirGen(ExprAST &expr, StringRef dst) {
+    switch (expr.getKind()) {
+    case pinch::ExprAST::Expr_BinOp:
+      return mlirGen(cast<BinaryExprAST>(expr), dst);
+    case pinch::ExprAST::Expr_Var:
+      return mlirGen(cast<VariableExprAST>(expr));
+    case pinch::ExprAST::Expr_VarRef:
+      return mlirGen(cast<VariableRefExprAST>(expr));
+    case pinch::ExprAST::Expr_VarMutRef:
+      return mlirGen(cast<VariableMutRefExprAST>(expr));
+    case pinch::ExprAST::Expr_Deref:
+      return mlirGen(cast<DerefExprAST>(expr));
+    case pinch::ExprAST::Expr_Call:
+      return mlirGen(cast<CallExprAST>(expr));
+    case pinch::ExprAST::Expr_Num:
+      return mlirGen(cast<NumberExprAST>(expr), dst);
+    default:
+      emitError(loc(expr.loc()))
+          << "MLIR codegen encountered an unhandled expr kind '"
+          << Twine(expr.getKind()) << "'";
+      return nullptr;
+    }
+  }
+  
 
   /// Handle a variable declaration, we'll codegen the expression that forms the
   /// initializer and record the value in the symbol table before returning it.
@@ -379,13 +409,7 @@ private:
       return nullptr;
     }
 
-    mlir::Value value;
-    if (init->getKind() == pinch::ExprAST::Expr_Num) {
-      auto n = cast<NumberExprAST>(init);
-      value = mlirGen(*n, vardecl.getName());
-    } else {
-      value = mlirGen(*init);
-    }
+    mlir::Value value = mlirGen(*init, vardecl.getName());
     if (!value)
       return nullptr;
 

@@ -94,10 +94,9 @@ static void printBinaryOp(mlir::OpAsmPrinter &printer, mlir::Operation *op) {
 void ConstantOp::build(mlir::Builder *builder, mlir::OperationState &state,
                        StringRef dst, unsigned int value) {
   auto inttype = builder->getIntegerType(32, false);
-  auto d = builder->getStringAttr(dst);
   state.addTypes(inttype);
   state.addAttribute("value", IntegerAttr::get(inttype, value));
-  state.addAttribute("dst", d);
+  state.addAttribute("dst", builder->getStringAttr(dst));
 }
 
 /// The 'OpAsmPrinter' class provides a collection of methods for parsing
@@ -138,9 +137,10 @@ static mlir::LogicalResult verify(ConstantOp op) {
 // AddOp
 
 void AddOp::build(mlir::Builder *builder, mlir::OperationState &state,
-                  mlir::Value lhs, mlir::Value rhs) {
+                  mlir::Value lhs, mlir::Value rhs, StringRef dst) {
   state.addTypes(builder->getIntegerType(32, false));
   state.addOperands({lhs, rhs});
+  state.addAttribute("dst", builder->getStringAttr(dst));
 }
 
 //===----------------------------------------------------------------------===//
@@ -158,9 +158,10 @@ void GenericCallOp::build(mlir::Builder *builder, mlir::OperationState &state,
 // MulOp
 
 void MulOp::build(mlir::Builder *builder, mlir::OperationState &state,
-                  mlir::Value lhs, mlir::Value rhs) {
+                  mlir::Value lhs, mlir::Value rhs, StringRef dst) {
   state.addTypes(builder->getIntegerType(32, false));
   state.addOperands({lhs, rhs});
+  state.addAttribute("dst", builder->getStringAttr(dst));
 }
 
 //===----------------------------------------------------------------------===//
