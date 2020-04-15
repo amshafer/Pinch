@@ -17,16 +17,24 @@ add_pinch(pinch
   parser/AST.cpp
   mlir/MLIRGen.cpp
   mlir/Dialect.cpp
+  mlir/BorrowChecker.cpp
 
   DEPENDS
   PinchOpsIncGen
+  BorrowCheckOpsIncGen
   )
 include_directories(include/)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/)
+get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 target_link_libraries(pinch
   PRIVATE
+    ${dialect_libs}
     MLIRAnalysis
+    MLIRCallInterfaces
     MLIRIR
     MLIRParser
+    MLIRPass
     MLIRSideEffects
+    MLIRSupport
     MLIRTransforms)
