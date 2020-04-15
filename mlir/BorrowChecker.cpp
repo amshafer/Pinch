@@ -33,16 +33,7 @@ namespace {
 ///
 ///    Algorithm:
 ///
-///   1) Build a worklist containing all the operations that return a
-///      dynamically shaped tensor: these are the operations that need shape
-///      inference.
-///   2) Iterate on the worklist:
-///     a) find an operation to process: the next ready operation in the
-///        worklist has all of its arguments non-generic,
-///     b) if no operation is found, break out of the loop,
-///     c) remove the operation from the worklist,
-///     d) infer the shape of its output from the argument types.
-///   3) If the worklist is empty, the algorithm succeeded.
+///   1) 
 ///
 class BorrowCheckerPass : public mlir::FunctionPass<BorrowCheckerPass> {
 public:
@@ -55,6 +46,7 @@ public:
     llvm::SmallPtrSet<mlir::Operation *, 16> opWorklist;
     f.walk([&](mlir::Operation *op) {
       // do something
+      llvm::dbgs() << "Borrow checking " << *op << "\n";
     });
   }
 };

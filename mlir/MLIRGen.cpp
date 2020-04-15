@@ -315,7 +315,7 @@ private:
 
   /// Emit a call expression. It emits specific operations for the ``
   /// builtin. Other identifiers are assumed to be user-defined functions.
-  mlir::Value mlirGen(CallExprAST &call) {
+  mlir::Value mlirGen(CallExprAST &call, StringRef dst) {
     llvm::StringRef callee = call.getCallee();
     auto location = loc(call.loc());
 
@@ -331,7 +331,11 @@ private:
     // Otherwise this is a call to a user-defined function. Calls to ser-defined
     // functions are mapped to a custom call that takes the callee name as an
     // attribute.
-    return builder.create<GenericCallOp>(location, callee, operands);
+    return builder.create<GenericCallOp>(location, callee, operands, dst);
+  }
+  mlir::Value mlirGen(CallExprAST &call) {
+    StringRef dst("");
+    mlirGen(call, dst);
   }
 
   /// Emit a print expression.
@@ -392,7 +396,7 @@ private:
     case pinch::ExprAST::Expr_Deref:
       return mlirGen(cast<DerefExprAST>(expr), dst);
     case pinch::ExprAST::Expr_Call:
-      return mlirGen(cast<CallExprAST>(expr));
+      return mlirGen(cast<CallExprAST>(expr), dst);
     case pinch::ExprAST::Expr_Num:
       return mlirGen(cast<NumberExprAST>(expr), dst);
     default:

@@ -227,7 +227,7 @@ def GenericCallOp : Pinch_Op<"generic_call"> {
   // The generic call operation takes a symbol reference attribute as the
     // callee, and inputs for the call.
     // TODO: make ref types
-  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<OwnedType>:$inputs);
+  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<OwnedType>:$inputs, StrAttr:$dst);
 
   let results = (outs OwnedType);
 
@@ -239,7 +239,7 @@ def GenericCallOp : Pinch_Op<"generic_call"> {
   // Add custom build methods for the generic call operation.
   let builders = [
     OpBuilder<"Builder *builder, OperationState &state, "
-              "StringRef callee, ArrayRef<Value> arguments">
+              "StringRef callee, ArrayRef<Value> arguments, StringRef dst">
   ];
 }
 
