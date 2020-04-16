@@ -47,17 +47,27 @@ namespace {
 /// Ownership information for a particular variable
 class Owner {
 public:
+  // name of this owning variable
   StringRef name;
+  // the result that this variable was assigned
   OpResult result;
+  // if this is a reference, here is the data it refers to
+  Owner *ref_to;
+  // number of references leased out to our value
   int ref_count, mut_ref_count;
 
 
-  Owner(StringRef n, OpResult res) {
+  Owner(StringRef n, OpResult res, Owner *rt) {
     this->name = n;
     this->result = res;
     this->ref_count = 0;
     this->mut_ref_count = 0;
+    this->ref_to = rt;
   }
+
+  Owner(StringRef n, OpResult res)
+      : Owner(n, res, NULL)
+  {}
 };
 
 /// The BorrowCheckerPass is a FunctionPass that performs intra-procedural
@@ -65,8 +75,15 @@ public:
 ///
 ///    Algorithm: (for each function scope)
 ///
-///   1) If the destination of a result is not yet known, insert it
+///   1) Check the source of the data for a given operation and
+///      make sure it is acceptable
+///
+///
+///   2) if the destination of a result is not yet known, insert it
 ///      into the symbol table
+///
+///   3) If the destination is known, record that we moved the data
+///      there
 ///
 class BorrowCheckerPass : public mlir::FunctionPass<BorrowCheckerPass> {
 public:
@@ -85,14 +102,27 @@ public:
     f.walk([&](mlir::Operation *op) {
       llvm::dbgs() << "Borrow checking " << op->getName() << "\n";
 
+      // Check the source first
+      auto srcattr = op->getAttrOfType<StringAttr>("src");
+      if (srcattr && srcattr.getValue() != "") {
+        auto src = srcattr.getValue();
+
+        // step 1
+      }
+
+      // check the destination
       auto dstattr = op->getAttrOfType<StringAttr>("dst");
       if (!dstattr || dstattr.getValue() == "")
         return;
 
       auto dst = dstattr.getValue();
       if (auto variable = symbolTable.lookup(dst)) {
-        // next step
+        // record that the value was moved to dst
+
+        // step 2
+
       } else {
+        // This must be a newly active variable
         // There should only be one result
         Owner *ow = new Owner(dst, op->getResult(0));
         assert(ow);
