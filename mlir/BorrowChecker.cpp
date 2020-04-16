@@ -47,11 +47,13 @@ namespace {
 /// Ownership information for a particular variable
 class Owner {
 public:
+  StringRef name;
   OpResult result;
   int ref_count, mut_ref_count;
 
 
-  Owner(OpResult res) {
+  Owner(StringRef n, OpResult res) {
+    this->name = n;
     this->result = res;
     this->ref_count = 0;
     this->mut_ref_count = 0;
@@ -71,6 +73,7 @@ public:
   void runOnFunction() override {
     auto f = getFunction();
 
+    vector<Owner *> owners;
     llvm::ScopedHashTable<StringRef, Owner *> symbolTable;
     ScopedHashTableScope<StringRef, Owner *> var_scope(symbolTable);
 
@@ -91,15 +94,19 @@ public:
         // next step
       } else {
         // There should only be one result
-        Owner *ow = new Owner(op->getResult(0));
+        Owner *ow = new Owner(dst, op->getResult(0));
         assert(ow);
         llvm::dbgs() << " - inserting into symbol table: " << dst << "\n";
         symbolTable.insert(dst, ow);
+        owners.push_back(ow);
       }
     });
 
-    for (auto itr = symbolTable.begin("a"); itr != symbolTable.end(); itr++) {
-      llvm::dbgs() << "Found symbol " << *itr << "\n";  
+    for (auto itr = owners.begin(); itr != owners.end(); itr++) {
+      Owner *ow = *itr;
+      StringRef name = ow->name;
+      llvm::dbgs() << "Found symbol " << name << "\n";
+      delete ow;
     }
   }
 };
