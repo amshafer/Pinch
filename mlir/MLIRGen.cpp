@@ -27,6 +27,7 @@
 #include "llvm/ADT/ScopedHashTable.h"
 #include "llvm/Support/raw_ostream.h"
 #include <numeric>
+#include "llvm/Support/Debug.h"
 
 using namespace mlir::pinch;
 using namespace pinch;
@@ -138,8 +139,16 @@ private:
       }
     }
 
+    std::vector<mlir::Attribute> argnames;
+    for (auto itr = proto.getArgs().begin(); itr != proto.getArgs().end(); itr++) {
+      argnames.push_back(builder.getStringAttr((*itr)->getName()));
+    }
+
+    auto argnames_ref = builder.getArrayAttr(llvm::makeArrayRef(argnames));
+    auto src = builder.getNamedAttr(StringRef("src"), argnames_ref);
+    auto attrs = makeArrayRef(src);
     auto func_type = builder.getFunctionType(arg_types, rt);
-    return mlir::FuncOp::create(location, proto.getName(), func_type);
+    return mlir::FuncOp::create(location, proto.getName(), func_type, attrs);
   }
 
   /// Emit a new function and add it to the MLIR module.
@@ -165,6 +174,7 @@ private:
       if (failed(declare(std::get<0>(name_value)->getName(),
                          std::get<1>(name_value))))
         return nullptr;
+
     }
 
     // Set the insertion point in the builder to the beginning of the function
@@ -335,7 +345,7 @@ private:
   }
   mlir::Value mlirGen(CallExprAST &call) {
     StringRef dst("");
-    mlirGen(call, dst);
+    return mlirGen(call, dst);
   }
 
   /// Emit a print expression.

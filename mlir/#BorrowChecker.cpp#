@@ -138,7 +138,7 @@ public:
 
         // TODO check mutable reference args
         Owner *ow = new Owner(srcs[i], NULL,
-                             (*itr).getType().isa<MemRefType>() ? OwType::ref: OwType::u32);
+                              (*itr).getType().isa<MemRefType>() ? OwType::ref: OwType::u32);
         symbolTable.insert(srcs[i], ow);
         i++;
       }
