@@ -42,6 +42,9 @@ using llvm::Twine;
 /// Include the auto-generated definitions for the shape inference interfaces.
 #include "BorrowCheckerOpInterfaces.cpp.inc"
 
+#define BORROW_CHECK(d, op, src) \
+  if (!(d)->check((op), (src))) { return signalPassFailure(); }
+
 namespace {
 
 /// Ownership information for a particular variable
@@ -78,9 +81,27 @@ public:
     if (op->getName().getStringRef().equals("pinch.borrow")) {
       assert(src);
       llvm::dbgs() << "    Borrowing " << src->name << "\n";
-    } else {
-      // do nothing since it might be another dialect
+
+      // fail if there is a mutable borrow already active
+      if (src->mut_ref_count > 0) {
+        op->emitError("Cannot borrow a shared reference while a "
+                      "mutable reference is active");
+        return false;
+      }
+      src->ref_count++;
+    } else if (op->getName().getStringRef().equals("pinch.borrow_mut")) {
+      assert(src);
+      llvm::dbgs() << "    Mutably Borrowing " << src->name << "\n";
+
+      // we need to be the only reference
+      if (src->mut_ref_count > 0 || src->ref_count > 0) {
+        op->emitError("Cannot borrow a shared reference while a "
+                      "mutable reference is active");
+        return false;
+      }
+      src->mut_ref_count++;
     }
+    // else do nothing since it might be another dialect
 
     return true;
   }
@@ -131,12 +152,12 @@ public:
 
         auto srcown = symbolTable.lookup(src);
         if (srcown) {
-          dstown->check(op, srcown);
+          BORROW_CHECK(dstown, op, srcown);
         } else {
-          dstown->check(op, NULL);
+          BORROW_CHECK(dstown, op, NULL);
         }
       } else {
-        dstown->check(op, NULL);
+        BORROW_CHECK(dstown, op, NULL);
       }
     });
 
