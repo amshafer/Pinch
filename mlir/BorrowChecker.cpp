@@ -55,36 +55,39 @@ public:
   Owner *ref_to;
   // number of references leased out to our value
   int ref_count, mut_ref_count;
+  bool is_mut_ref;
 
-
-  Owner(StringRef n, OpResult res, Owner *rt) {
+  Owner(StringRef n, OpResult res, Owner *rt, bool im) {
     this->name = n;
     this->result = res;
     this->ref_count = 0;
     this->mut_ref_count = 0;
     this->ref_to = rt;
+    this->is_mut_ref = im;
   }
 
   Owner(StringRef n, OpResult res)
-      : Owner(n, res, NULL)
+      : Owner(n, res, NULL, false)
   {}
+
+  // This is a big state machine that checks the rules for
+  // each type of operation. 'this' is the destination
+  //
+  // src may be NULL
+  bool check(mlir::Operation *op, Owner *src) {
+    if (op->getName().getStringRef().equals("pinch.borrow")) {
+      assert(src);
+      llvm::dbgs() << "    Borrowing " << src->name << "\n";
+    } else {
+      // do nothing since it might be another dialect
+    }
+
+    return true;
+  }
 };
 
-/// The BorrowCheckerPass is a FunctionPass that performs intra-procedural
-/// shape inference.
-///
-///    Algorithm: (for each function scope)
-///
-///   1) Check the source of the data for a given operation and
-///      make sure it is acceptable
-///
-///
-///   2) if the destination of a result is not yet known, insert it
-///      into the symbol table
-///
-///   3) If the destination is known, record that we moved the data
-///      there
-///
+/// The BorrowCheckerPass is a FunctionPass that performs static
+/// checking of pointer rules
 class BorrowCheckerPass : public mlir::FunctionPass<BorrowCheckerPass> {
 public:
   void runOnFunction() override {
@@ -102,33 +105,38 @@ public:
     f.walk([&](mlir::Operation *op) {
       llvm::dbgs() << "Borrow checking " << op->getName() << "\n";
 
-      // Check the source first
-      auto srcattr = op->getAttrOfType<StringAttr>("src");
-      if (srcattr && srcattr.getValue() != "") {
-        auto src = srcattr.getValue();
-
-        // step 1
-      }
-
       // check the destination
       auto dstattr = op->getAttrOfType<StringAttr>("dst");
       if (!dstattr || dstattr.getValue() == "")
         return;
 
       auto dst = dstattr.getValue();
-      if (auto variable = symbolTable.lookup(dst)) {
-        // record that the value was moved to dst
-
-        // step 2
-
-      } else {
+      if (!symbolTable.lookup(dst)) {
         // This must be a newly active variable
         // There should only be one result
         Owner *ow = new Owner(dst, op->getResult(0));
         assert(ow);
-        llvm::dbgs() << " - inserting into symbol table: " << dst << "\n";
+        llvm::dbgs() << "    inserting into symbol table: " << dst << "\n";
         symbolTable.insert(dst, ow);
         owners.push_back(ow);
+      }
+
+      auto dstown = symbolTable.lookup(dst);
+      assert(dstown);
+
+      // Check the source
+      auto srcattr = op->getAttrOfType<StringAttr>("src");
+      if (srcattr && srcattr.getValue() != "") {
+        auto src = srcattr.getValue();
+
+        auto srcown = symbolTable.lookup(src);
+        if (srcown) {
+          dstown->check(op, srcown);
+        } else {
+          dstown->check(op, NULL);
+        }
+      } else {
+        dstown->check(op, NULL);
       }
     });
 
