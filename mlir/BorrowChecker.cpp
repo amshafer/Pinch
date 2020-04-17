@@ -62,6 +62,8 @@ public:
   Owner *ref_to;
   // number of references leased out to our value
   int ref_count, mut_ref_count;
+  // Does this variable actually own anything?
+  bool is_resident;
   OwType type;
 
   Owner(StringRef n, Owner *rt, OwType ty) {
@@ -69,6 +71,7 @@ public:
     this->ref_count = 0;
     this->mut_ref_count = 0;
     this->ref_to = rt;
+    this->is_resident = true;
     this->type = ty;
   }
 
@@ -90,6 +93,11 @@ public:
       assert(src);
       llvm::dbgs() << "    Borrowing " << src->name << "\n";
 
+      if (!src->is_resident) {
+        op->emitError("Trying to borrow a reference to already moved variable");
+        return false;
+      }
+
       // fail if there is a mutable borrow already active
       if (src->mut_ref_count > 0) {
         op->emitError("Cannot borrow a shared reference while a "
@@ -101,6 +109,11 @@ public:
     } else if (op->getName().getStringRef().equals("pinch.borrow_mut")) {
       assert(src);
       llvm::dbgs() << "    Mutably Borrowing " << src->name << "\n";
+
+      if (!src->is_resident) {
+        op->emitError("Trying to borrow a mutable reference to already moved variable");
+        return false;
+      }
 
       // we need to be the only reference
       if (src->mut_ref_count > 0 || src->ref_count > 0) {
@@ -114,10 +127,17 @@ public:
       assert(src);
       llvm::dbgs() << "    moving " << src->name << " to " << this->name << "\n";
 
+      if (!src->is_resident) {
+        op->emitError("Trying to move from already moved variable");
+        return false;
+      }
+
       if (src->mut_ref_count > 0 || src->ref_count > 0) {
         op->emitError("Invalid move after borrow");
         return false;
       }
+      // mark the src as empty
+      src->is_resident = false;
     }
     // else do nothing since it might be another dialect
 
