@@ -103,6 +103,14 @@ public:
         return false;
       }
       src->mut_ref_count++;
+    } else if (op->getName().getStringRef().equals("pinch.move")) {
+      assert(src);
+      llvm::dbgs() << "    moving " << src->name << " to " << this->name << "\n";
+
+      if (src->mut_ref_count > 0 || src->ref_count > 0) {
+        op->emitError("Invalid move after borrow");
+        return false;
+      }
     }
     // else do nothing since it might be another dialect
 
