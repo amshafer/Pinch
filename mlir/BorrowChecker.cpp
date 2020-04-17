@@ -76,6 +76,11 @@ public:
       : Owner(n, NULL, OwType::u32)
   {}
 
+  bool is_some_ref() {
+    return this->type == OwType::ref
+      || this->type == OwType::ref;
+  }
+
   // This is a big state machine that checks the rules for
   // each type of operation. 'this' is the destination
   //
@@ -91,6 +96,7 @@ public:
                       "mutable reference is active");
         return false;
       }
+      this->type = OwType::ref;
       src->ref_count++;
     } else if (op->getName().getStringRef().equals("pinch.borrow_mut")) {
       assert(src);
@@ -102,6 +108,7 @@ public:
                       "mutable reference is active");
         return false;
       }
+      this->type = OwType::mut;
       src->mut_ref_count++;
     } else if (op->getName().getStringRef().equals("pinch.move")) {
       assert(src);
@@ -160,6 +167,27 @@ public:
     f.walk([&](mlir::Operation *op) {
       llvm::dbgs() << "Borrow checking " << op->getName() << "\n";
 
+      auto srcattr = op->getAttrOfType<StringAttr>("src");
+      // we need to handle return here since it needs access to the
+      // symbol table
+      if (op->getName().getStringRef().equals("pinch.return")
+          && srcattr
+          && srcattr.getValue() != "") {
+        llvm::dbgs() << "Returning " << srcattr.getValue() << "\n";
+        // check if src is in the symbol table
+        auto srcown = symbolTable.lookup(srcattr.getValue());
+        if (srcown) {
+          // if it is some type of reference we will give a warning
+          if (srcown->is_some_ref()) {
+            op->emitError("returning reference to variable whose lifetime is ending");
+            return signalPassFailure();
+          }
+        } else {
+          op->emitError("Could not find return source " + srcattr.getValue());
+          return signalPassFailure();
+        }
+      }
+
       // check the destination
       auto dstattr = op->getAttrOfType<StringAttr>("dst");
       if (!dstattr || dstattr.getValue() == "")
@@ -179,7 +207,6 @@ public:
       assert(dstown);
 
       // Check the source
-      auto srcattr = op->getAttrOfType<StringAttr>("src");
       if (srcattr && srcattr.getValue() != "") {
         auto src = srcattr.getValue();
 

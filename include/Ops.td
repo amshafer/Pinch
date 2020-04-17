@@ -276,14 +276,14 @@ def ReturnOp : Pinch_Op<"return", [NoSideEffect, HasParent<"FuncOp">,
   // The return operation takes an optional input operand to return. This
     // value must match the return type of the enclosing function.
     // TODO: add ref type
-  let arguments = (ins Variadic<OwnedType>:$input);
+  let arguments = (ins Variadic<OwnedType>:$input, StrAttr:$src);
 
   // The return operation only emits the input in the format if it is present.
   let assemblyFormat = "($input^ `:` type($input))? attr-dict ";
 
   // Allow building a ReturnOp with no return operand.
   let builders = [OpBuilder<
-    "Builder *b, OperationState &state", [{ build(b, state, llvm::None); }]
+    "Builder *b, OperationState &state", [{ build(b, state, llvm::None, StringRef("")); }]
   >];
 
   // Provide extra utility definitions on the c++ operation class definition.

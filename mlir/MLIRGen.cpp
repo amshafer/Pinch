@@ -311,15 +311,32 @@ private:
 
     // 'return' takes an optional expression, handle that case here.
     mlir::Value expr = nullptr;
+    StringRef src("");
     if (ret.getExpr().hasValue()) {
       StringRef sr("return");
       if (!(expr = mlirGen(*ret.getExpr().getValue(), sr)))
         return mlir::failure();
+
+      // record the name of the variable supplying the return,
+      // if there is one
+      if ((*ret.getExpr())->getKind() == pinch::ExprAST::Expr_Var) {
+        auto v = cast<VariableExprAST>(*ret.getExpr());
+        src = v->getName();
+      } else if((*ret.getExpr())->getKind() == pinch::ExprAST::Expr_VarRef) {
+        // If the return value had an SSA generated for it, we need to check
+        // the 'return' source.
+        src = sr;
+      } else if((*ret.getExpr())->getKind() == pinch::ExprAST::Expr_VarMutRef) {
+        // see above
+        src = sr;
+      }
     }
 
     // Otherwise, this return operation has zero operands.
-    builder.create<ReturnOp>(location, expr ? makeArrayRef(expr)
-                                            : ArrayRef<mlir::Value>());
+    builder.create<ReturnOp>(location,
+                             expr ? makeArrayRef(expr)
+                             : ArrayRef<mlir::Value>(),
+                             src);
     return mlir::success();
   }
 
