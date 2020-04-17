@@ -243,6 +243,7 @@ private:
   /// expected to have been declared and so should have a value in the symbol
   /// table, otherwise emit an error and return nullptr.
   mlir::Value mlirGen(VariableExprAST &expr) {
+    llvm::dbgs() << "Looking up variable " << expr.getName() << "\n";
     if (auto variable = symbolTable.lookup(expr.getName()))
       return variable;
 
@@ -268,6 +269,9 @@ private:
         << expr.getName() << "'";
     return nullptr;
   }
+  mlir::Value mlirGen(VariableRefExprAST &expr) {
+    return mlirGen(expr, StringRef(""));
+  }
 
   mlir::Value mlirGen(VariableMutRefExprAST &expr, StringRef dst) {
     auto location = loc(expr.loc());
@@ -286,6 +290,9 @@ private:
         << expr.getName() << "'";
     return nullptr;
   }
+  mlir::Value mlirGen(VariableMutRefExprAST &expr) {
+    return mlirGen(expr, StringRef(""));
+  }
 
   mlir::Value mlirGen(DerefExprAST &expr, StringRef dst) {
     auto location = loc(expr.loc());
@@ -303,6 +310,9 @@ private:
     emitError(loc(expr.loc()), "error: referencing unknown variable '")
         << expr.getName() << "'";
     return nullptr;
+  }
+  mlir::Value mlirGen(DerefExprAST &expr) {
+    return mlirGen(expr, StringRef(""));
   }
 
   /// Emit a return operation. This will return failure if any generation fails.
@@ -349,6 +359,8 @@ private:
     // Codegen the operands first.
     SmallVector<mlir::Value, 4> operands;
     for (auto &expr : call.getArgs()) {
+      if (expr->getKind() == pinch::ExprAST::Expr_Var)
+        llvm::dbgs() << "Pushing argument " << cast<VariableExprAST>(*expr).getName() << "\n";
       auto arg = mlirGen(*expr);
       if (!arg)
         return nullptr;
@@ -451,20 +463,30 @@ private:
     if (!value)
       return nullptr;
 
+    if (init->getKind() == pinch::ExprAST::Expr_Var) {
+      auto src = cast<VariableExprAST>(init);
+
+      // Create a move operation since we are moving the
+      // value from init to vardecl
+      auto mop  = builder.create<MoveOp>(loc(vardecl.loc()),
+                                         value,
+                                         src->getName(),
+                                         vardecl.getName());
+
+      // Register the value in the symbol table, but
+      // take care that the value we point at is our
+      // newly minted move operation
+      if (failed(declare(vardecl.getName(), mop)))
+        return nullptr;
+
+      return mop;
+    }
+
     // Register the value in the symbol table.
     if (failed(declare(vardecl.getName(), value)))
       return nullptr;
 
-    if (init->getKind() == pinch::ExprAST::Expr_Var) {
-      auto src = cast<VariableExprAST>(init);
-      // Create a move operation since we are moving the
-      // value from init to vardecl
-      return builder.create<MoveOp>(loc(vardecl.loc()),
-                                    value,
-                                    src->getName(),
-                                    vardecl.getName());
-
-    } else if (init->getKind() == pinch::ExprAST::Expr_VarRef) {
+    if (init->getKind() == pinch::ExprAST::Expr_VarRef) {
       auto expr = cast<VariableRefExprAST>(init);
 
       // make a mapping of what type we point to

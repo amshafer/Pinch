@@ -42,8 +42,8 @@ using llvm::Twine;
 /// Include the auto-generated definitions for the shape inference interfaces.
 #include "BorrowCheckerOpInterfaces.cpp.inc"
 
-#define BORROW_CHECK(d, op, src) \
-  if (!(d)->check((op), (src))) { return signalPassFailure(); }
+#define BORROW_CHECK(d, op, src, st)                               \
+  if (!(d)->check((op), (src), (st))) { return signalPassFailure(); }
 
 namespace {
 
@@ -88,7 +88,8 @@ public:
   // each type of operation. 'this' is the destination
   //
   // src may be NULL
-  bool check(mlir::Operation *op, Owner *src) {
+  bool check(mlir::Operation *op, Owner *src,
+             llvm::ScopedHashTable<StringRef, Owner *> &symbolTable) {
     if (op->getName().getStringRef().equals("pinch.borrow")) {
       assert(src);
       llvm::dbgs() << "    Borrowing " << src->name << "\n";
@@ -138,6 +139,27 @@ public:
       }
       // mark the src as empty
       src->is_resident = false;
+    } else if (op->getName().getStringRef().equals("pinch.generic_call")) {
+      llvm::dbgs() << "    calling function " << op->getAttrOfType<FlatSymbolRefAttr>("callee") << "\n";
+      for (auto itr = op->operand_begin(); itr != op->operand_end(); itr++) {
+        auto dst = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("dst");
+        llvm::dbgs() << "       arg " << dst << "\n";
+
+        // if dst is "" then it is a temp var, check src instead
+        StringRef arg_src = dst.getValue();
+        if (arg_src == "") {
+          arg_src = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("src").getValue();
+        }
+
+        // look it up in symbol table
+        if (auto ow = symbolTable.lookup(arg_src)) {
+          llvm::dbgs() << "       checking arg src " << ow->name << "\n";
+          if (!ow->is_resident) {
+            op->emitError("Trying to use value from already moved variable");
+            return false;
+          }
+        }
+      }
     }
     // else do nothing since it might be another dialect
 
@@ -232,13 +254,13 @@ public:
 
         auto srcown = symbolTable.lookup(src);
         if (srcown) {
-          BORROW_CHECK(dstown, op, srcown);
+          BORROW_CHECK(dstown, op, srcown, symbolTable);
         } else {
           op->emitError("owning src not found: " + src);
           return signalPassFailure();
         }
       } else {
-        BORROW_CHECK(dstown, op, NULL);
+        BORROW_CHECK(dstown, op, NULL, symbolTable);
       }
     });
 
