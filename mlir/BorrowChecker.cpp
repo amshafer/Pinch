@@ -148,7 +148,11 @@ public:
         // if dst is "" then it is a temp var, check src instead
         StringRef arg_src = dst.getValue();
         if (arg_src == "") {
-          arg_src = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("src").getValue();
+          auto sa = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("src");
+          // if src is not found, it must be a constant temp
+          if (!sa)
+            return true;
+          arg_src = sa.getValue();
         }
 
         // look it up in symbol table

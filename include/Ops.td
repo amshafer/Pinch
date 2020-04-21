@@ -251,7 +251,7 @@ def PrintOp : Pinch_Op<"print"> {
   }];
 
   // The print operation takes an input tensor to print.
-  let arguments = (ins OwnedType:$input);
+  let arguments = (ins AnyTypeOf<[OwnedType, I32]>:$input);
 
   let assemblyFormat = "$input attr-dict `:` type($input)";
 }

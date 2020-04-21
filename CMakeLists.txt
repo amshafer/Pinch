@@ -4,6 +4,7 @@ set_target_properties(Pinch PROPERTIES FOLDER Examples)
 add_subdirectory(include)
 
 set(LLVM_LINK_COMPONENTS
+  Core
   Support
   )
 
@@ -17,24 +18,31 @@ add_pinch(pinch
   parser/AST.cpp
   mlir/MLIRGen.cpp
   mlir/Dialect.cpp
+  mlir/LowerToLLVM.cpp
+  mlir/LowerToStd.cpp
   mlir/BorrowChecker.cpp
 
   DEPENDS
   PinchOpsIncGen
   BorrowCheckOpsIncGen
   )
+  
 include_directories(include/)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/)
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 target_link_libraries(pinch
   PRIVATE
     ${dialect_libs}
+    ${conversion_libs}
     MLIRAnalysis
     MLIRCallInterfaces
+    MLIRExecutionEngine
     MLIRIR
     MLIRParser
     MLIRPass
     MLIRSideEffects
-    MLIRSupport
-    MLIRTransforms)
+    MLIRTargetLLVMIR
+    MLIRTransforms
+    )
