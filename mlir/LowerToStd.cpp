@@ -63,10 +63,22 @@ struct ReturnOpLowering : public OpRewritePattern<pinch::ReturnOp> {
 
   LogicalResult matchAndRewrite(pinch::ReturnOp op,
                                 PatternRewriter &rewriter) const final {
+    // If the op returns an i32, rewrite it to match the funcops u32
+    auto fop = op.getParentOfType<FuncOp>();
+    if (fop && fop.getCallableResults().size() > 0) {
+      auto res = fop.getCallableResults()[0];
+      if (res.isUnsignedInteger()) {
+        llvm::dbgs() << "Found parent function operand with results " << res << "\n";
+        auto nftype = rewriter.getFunctionType(fop.getType().getInputs(),
+                                               rewriter.getIntegerType(32));
+        fop.setType(nftype);
+      }
+    }
 
     // TODO: add results
     // We lower "pinch.return" directly to "std.return".
     rewriter.replaceOpWithNewOp<ReturnOp>(op, op.getOperands());
+
     return success();
   }
 };

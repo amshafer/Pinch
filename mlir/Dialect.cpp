@@ -14,11 +14,50 @@
 #include "Dialect.h"
 
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/StandardTypes.h"
+#include "mlir/Transforms/InliningUtils.h"
 
 using namespace mlir;
 using namespace mlir::pinch;
+
+//===----------------------------------------------------------------------===//
+// PinchInlinerInterface
+//===----------------------------------------------------------------------===//
+
+/// This class defines the interface for handling inlining with Pinch
+/// operations.
+struct PinchInlinerInterface : public DialectInlinerInterface {
+  using DialectInlinerInterface::DialectInlinerInterface;
+
+  //===--------------------------------------------------------------------===//
+  // Analysis Hooks
+  //===--------------------------------------------------------------------===//
+
+  /// All operations within pinch can be inlined.
+  bool isLegalToInline(Operation *, Region *,
+                       BlockAndValueMapping &) const final {
+    return true;
+  }
+
+  //===--------------------------------------------------------------------===//
+  // Transformation Hooks
+  //===--------------------------------------------------------------------===//
+
+  /// Handle the given inlined terminator(pinch.return) by replacing it with a new
+  /// operation as necessary.
+  void handleTerminator(Operation *op,
+                        ArrayRef<Value> valuesToRepl) const final {
+    // Only "pinch.return" needs to be handled here.
+    auto returnOp = cast<ReturnOp>(op);
+
+    // Replace the values directly with the return operands.
+    assert(returnOp.getNumOperands() == valuesToRepl.size());
+    for (const auto &it : llvm::enumerate(returnOp.getOperands()))
+      valuesToRepl[it.index()].replaceAllUsesWith(it.value());
+  }
+};
 
 //===----------------------------------------------------------------------===//
 // PinchDialect
@@ -31,6 +70,7 @@ PinchDialect::PinchDialect(mlir::MLIRContext *ctx) : mlir::Dialect("pinch", ctx)
 #define GET_OP_LIST
 #include "Ops.cpp.inc"
       >();
+  addInterfaces<PinchInlinerInterface>();
 }
 
 //===----------------------------------------------------------------------===//
@@ -155,6 +195,16 @@ void GenericCallOp::build(mlir::Builder *builder, mlir::OperationState &state,
   state.addAttribute("callee", builder->getSymbolRefAttr(callee));
   state.addAttribute("dst", builder->getStringAttr(dst));
 }
+
+/// Return the callee of the generic call operation, this is required by the
+/// call interface.
+CallInterfaceCallable GenericCallOp::getCallableForCallee() {
+  return getAttrOfType<SymbolRefAttr>("callee");
+}
+
+/// Get the argument operands to the called function, this is required by the
+/// call interface.
+Operation::operand_range GenericCallOp::getArgOperands() { return inputs(); }
 
 //===----------------------------------------------------------------------===//
 // MulOp

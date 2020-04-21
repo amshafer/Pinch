@@ -142,14 +142,16 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
   bool isLoweringToLLVM = emitAction >= Action::DumpMLIRLLVM;
 
   if (enableOpt || isBorrowChecking) {
-    // Now that there is only one function, we can infer the shapes of each of
-    // the operations.
-    mlir::OpPassManager &optPM = pm.nest<mlir::FuncOp>();
-    optPM.addPass(mlir::pinch::createBorrowCheckerPass());
+    pm.addPass(mlir::pinch::createBorrowCheckerPass());
   }
 
   if (isLoweringToSTD || isLoweringToLLVM) {
-    pm.addPass(mlir::pinch::createLowerToStdPass());
+    pm.addPass(mlir::createInlinerPass());
+
+    // Now that there is only one function, we can infer the shapes of each of
+    // the operations.
+    mlir::OpPassManager &optPM = pm.nest<mlir::FuncOp>();
+    optPM.addPass(mlir::pinch::createLowerToStdPass());
   }
   if (isLoweringToLLVM) {
     // Finish lowering the toy IR to the LLVM dialect.
@@ -159,7 +161,6 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
   if (mlir::failed(pm.run(*module)))
     return 4;
 
-  module->dump();
   return 0;
 }
 

@@ -13,6 +13,8 @@
 #ifndef PINCH_OPS
 #define PINCH_OPS
 
+include "mlir/Interfaces/CallInterfaces.td"
+include "mlir/Interfaces/SideEffects.td"
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/SideEffects.td"
 
@@ -207,7 +209,8 @@ def DerefOp : Pinch_Op<"deref"> {
     //let printer = [{ return ::printBinaryOp(p, *this); }];
 }
 
-def GenericCallOp : Pinch_Op<"generic_call"> {
+def GenericCallOp : Pinch_Op<"generic_call",
+                             [DeclareOpInterfaceMethods<CallOpInterface>]> {
   let summary = "generic call operation";
   let description = [{
     Generic calls represent calls to a user defined function that needs to
