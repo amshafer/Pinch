@@ -64,6 +64,17 @@ struct ConstantOpLowering : public OpRewritePattern<pinch::ConstantOp> {
   }
 };
 
+struct MoveOpLowering : public OpRewritePattern<pinch::MoveOp> {
+  using OpRewritePattern<pinch::MoveOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(pinch::MoveOp op,
+                                PatternRewriter &rewriter) const final {
+
+    rewriter.replaceOp(op, op.getOperand());
+    return success();
+  }
+};
+
 //===----------------------------------------------------------------------===//
 // PinchToStd RewritePatterns: Return operations
 //===----------------------------------------------------------------------===//
@@ -135,8 +146,9 @@ struct BinaryOpLowering : public ConversionPattern {
     Value loadedLhs = binaryAdaptor.lhs();
     if (loadedLhs.getType().isa<MemRefType>())
       loadedLhs = rewriter.create<LoadOp>(loc, binaryAdaptor.lhs(), iop);
-    Value loadedRhs =
-      rewriter.create<LoadOp>(loc, binaryAdaptor.rhs(), iop);
+    Value loadedRhs = binaryAdaptor.rhs();
+    if (loadedRhs.getType().isa<MemRefType>())
+      loadedRhs = rewriter.create<LoadOp>(loc, binaryAdaptor.rhs(), iop);
 
     // Create the binary operation performed on the loaded values.
     rewriter.replaceOpWithNewOp<LoweredBinaryOp>(op, loadedLhs, loadedRhs);
@@ -200,7 +212,7 @@ void PinchToStdLoweringPass::runOnFunction() {
   // set of legal ones.
   OwningRewritePatternList patterns;
   patterns.insert<AddOpLowering, ConstantOpLowering, MulOpLowering,
-                  ReturnOpLowering>(&getContext());
+                  ReturnOpLowering, MoveOpLowering>(&getContext());
 
   // We want to completely lower to LLVM, so we use a `FullConversion`. This
   // ensures that only legal operations will remain after the conversion.
