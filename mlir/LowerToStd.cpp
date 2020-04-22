@@ -15,6 +15,7 @@
 #include "Passes.h"
 
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/Sequence.h"
@@ -23,7 +24,6 @@
 #include "mlir/IR/IntegerSet.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Pass/Pass.h"
-#include "mlir/Support/Functional.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/Passes.h"
 
@@ -47,9 +47,16 @@ struct ConstantOpLowering : public OpRewritePattern<pinch::ConstantOp> {
 
     auto valueAttr =
       rewriter.getIntegerAttr(rewriter.getIntegerType(32), constantValue);
+    auto ptrType = mlir::MemRefType::get(llvm::makeArrayRef<int64_t>(1),
+                                         rewriter.getIntegerType(32));
+
+    Value vop = rewriter.create<ConstantOp>(op.getLoc(), valueAttr);
+    rewriter.create<AllocaOp>(vop.getLoc(), ptrType);
+        
+
 
     // Replace this operation with the generated alloc.
-    rewriter.replaceOpWithNewOp<ConstantOp>(op, valueAttr);
+    rewriter.eraseOp(op);
     return success();
   }
 };
@@ -69,7 +76,18 @@ struct ReturnOpLowering : public OpRewritePattern<pinch::ReturnOp> {
       auto res = fop.getCallableResults()[0];
       if (res.isUnsignedInteger()) {
         llvm::dbgs() << "Found parent function operand with results " << res << "\n";
-        auto nftype = rewriter.getFunctionType(fop.getType().getInputs(),
+        auto argtypes = fop.getType().getInputs();
+        std::vector<Type> nargtypes;
+        // if any of the types are u32, change to i32
+        for (size_t i = 0; i < argtypes.size(); i++) {
+          llvm::dbgs() << "Found arg type " << argtypes.data()[i] << "\n";
+          nargtypes.push_back(argtypes.data()[i]);
+          if (nargtypes[i].isUnsignedInteger()) {
+            nargtypes[i] = rewriter.getIntegerType(32);
+          }
+        }
+
+        auto nftype = rewriter.getFunctionType(llvm::makeArrayRef(nargtypes),
                                                rewriter.getIntegerType(32));
         fop.setType(nftype);
       }
@@ -117,7 +135,8 @@ using MulOpLowering = BinaryOpLowering<pinch::MulOp, MulIOp>;
 //===----------------------------------------------------------------------===//
 
 namespace {
-struct PinchToStdLoweringPass : public FunctionPass<PinchToStdLoweringPass> {
+struct PinchToStdLoweringPass
+    : public PassWrapper<PinchToStdLoweringPass, FunctionPass> {
   void runOnFunction() final;
 };
 } // end anonymous namespace
@@ -133,6 +152,8 @@ void PinchToStdLoweringPass::runOnFunction() {
       function.emitError("expected 'main' to have 0 inputs and 0 results");
       return signalPassFailure();
     }
+  } else {
+    return;
   }
 
   // The first thing to define is the conversion target. This will define the

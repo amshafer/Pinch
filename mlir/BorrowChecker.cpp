@@ -173,7 +173,7 @@ public:
 
 /// The BorrowCheckerPass is a FunctionPass that performs static
 /// checking of pointer rules
-class BorrowCheckerPass : public mlir::FunctionPass<BorrowCheckerPass> {
+class BorrowCheckerPass : public PassWrapper<BorrowCheckerPass, FunctionPass> {
 public:
   void runOnFunction() override {
     auto f = getFunction();

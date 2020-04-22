@@ -152,6 +152,14 @@ int loadAndProcessMLIR(mlir::MLIRContext &context,
     // the operations.
     mlir::OpPassManager &optPM = pm.nest<mlir::FuncOp>();
     optPM.addPass(mlir::pinch::createLowerToStdPass());
+
+    // add optimizations
+    if (enableOpt) {
+      optPM.addPass(mlir::createCSEPass());
+      optPM.addPass(mlir::createCanonicalizerPass());
+      optPM.addPass(mlir::createLoopFusionPass());
+      optPM.addPass(mlir::createMemRefDataFlowOptPass());
+    }
   }
   if (isLoweringToLLVM) {
     // Finish lowering the toy IR to the LLVM dialect.

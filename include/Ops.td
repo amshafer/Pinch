@@ -16,7 +16,6 @@
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/SideEffects.td"
 include "mlir/IR/OpBase.td"
-include "mlir/Interfaces/SideEffects.td"
 
 // Provide a definition of the 'pinch' dialect in the ODS framework so that we
 // can define our operations.
@@ -52,7 +51,7 @@ def OwnedType: AnyTypeOf<[DataType, AnyRefType]>;
 // Here we provide the mnemonic and a list of traits for the operation. The
 // constant operation is marked as 'NoSideEffect' as it is a pure operation
 // and may be removed if dead.
-def ConstantOp : Pinch_Op<"constant", [NoSideEffect]> {
+def ConstantOp : Pinch_Op<"constant", [NoSideEffect, ConstantLike]> {
   // Provide a summary and description for this operation. This can be used to
   // auto-generate documentation of the operations within our dialect.
   let summary = "constant";
@@ -207,6 +206,25 @@ def DerefOp : Pinch_Op<"deref"> {
   // Specify a parser and printer method.
   //let parser = [{ return ::parseBinaryOp(parser, result); }];
     //let printer = [{ return ::printBinaryOp(p, *this); }];
+}
+
+def CastOp : Pinch_Op<"cast", [NoSideEffect]> {
+  let summary = "shape cast operation";
+  let description = [{
+    The "cast" operation converts a tensor from one type to an equivalent type
+    without changing any data elements. The source and destination types
+    must both be tensor types with the same element type. If both are ranked
+    then the rank should be the same and static dimensions should match. The
+    operation is invalid if converting to a mismatching constant dimension.
+  }];
+
+  let arguments = (ins UI32:$input);
+  let results = (outs I32:$output);
+
+  let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
+
+  // Set the folder bit so that we can fold redundant cast operations.
+  let hasFolder = 1;
 }
 
 def GenericCallOp : Pinch_Op<"generic_call",

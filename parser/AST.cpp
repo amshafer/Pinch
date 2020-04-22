@@ -12,9 +12,8 @@
 
 #include "AST.h"
 
-#include "mlir/ADT/TypeSwitch.h"
-#include "mlir/Support/STLExtras.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace pinch;
@@ -78,7 +77,7 @@ template <typename T> static std::string loc(T *node) {
 
 /// Dispatch to a generic expressions to the appropriate subclass using RTTI
 void ASTDumper::dump(ExprAST *expr) {
-  mlir::TypeSwitch<ExprAST *>(expr)
+  llvm::TypeSwitch<ExprAST *>(expr)
     .Case<BinaryExprAST, CallExprAST, NumberExprAST, DerefExprAST,
             PrintExprAST, ReturnExprAST, VarDeclExprAST, VariableRefExprAST,
             VariableMutRefExprAST, VariableExprAST>(
@@ -199,7 +198,7 @@ void ASTDumper::dump(PrototypeAST *node) {
   llvm::errs() << "Proto '" << node->getName() << "' " << loc(node) << "'\n";
   indent();
   llvm::errs() << "Params: [";
-  mlir::interleaveComma(node->getArgs(), llvm::errs(),
+  llvm::interleaveComma(node->getArgs(), llvm::errs(),
                         [](auto &arg) {
                           llvm::errs() << arg->getName() << ": ";
                           auto type = arg->getType();

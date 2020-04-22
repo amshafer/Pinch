@@ -57,6 +57,12 @@ struct PinchInlinerInterface : public DialectInlinerInterface {
     for (const auto &it : llvm::enumerate(returnOp.getOperands()))
       valuesToRepl[it.index()].replaceAllUsesWith(it.value());
   }
+
+  Operation *materializeCallConversion(OpBuilder &builder, Value input,
+                                       Type resultType,
+                                       Location conversionLoc) const final {
+    return builder.create<CastOp>(conversionLoc, resultType, input);;
+  }
 };
 
 //===----------------------------------------------------------------------===//
@@ -181,6 +187,11 @@ void AddOp::build(mlir::Builder *builder, mlir::OperationState &state,
   state.addTypes(builder->getIntegerType(32, false));
   state.addOperands({lhs, rhs});
   state.addAttribute("dst", builder->getStringAttr(dst));
+}
+
+/// Fold simple cast operations that return the same type as the input.
+OpFoldResult CastOp::fold(ArrayRef<Attribute> operands) {
+  return mlir::impl::foldCastOp(*this);
 }
 
 //===----------------------------------------------------------------------===//
