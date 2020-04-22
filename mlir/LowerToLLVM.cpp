@@ -61,8 +61,16 @@ public:
     // Generate a call to printf for the current element of the loop.
     auto printOp = cast<pinch::PrintOp>(op);
 
+    auto indexAttr =
+      rewriter.getIntegerAttr(rewriter.getIndexType(), 0);
+    Value iop = rewriter.create<ConstantOp>(loc, indexAttr);
+
+    Value loadedarg = printOp.input();
+    if (loadedarg.getType().isa<MemRefType>())
+      loadedarg = rewriter.create<LoadOp>(loc, printOp.input(), iop);
+
     rewriter.create<CallOp>(loc, printfRef, rewriter.getIntegerType(32),
-                            ArrayRef<Value>({formatSpecifierCst, printOp.input()}));
+                            ArrayRef<Value>({formatSpecifierCst, loadedarg}));
 
     rewriter.eraseOp(op);
     return success();
