@@ -116,13 +116,14 @@ using AddOpLowering = BinaryOpLowering<pinch::AddOp, AddIOp>;
 using MulOpLowering = BinaryOpLowering<pinch::MulOp, MulIOp>;
 
 /* -------- pointer lowering ----------- */
-struct MoveOpLowering : public OpRewritePattern<pinch::MoveOp> {
-  using OpRewritePattern<pinch::MoveOp>::OpRewritePattern;
+struct MoveOpLowering : public ConversionPattern {
+  MoveOpLowering(MLIRContext *ctx)
+      : ConversionPattern(pinch::MoveOp::getOperationName(), 1, ctx) {}
 
-  LogicalResult matchAndRewrite(pinch::MoveOp op,
-                                PatternRewriter &rewriter) const final {
-
-    rewriter.replaceOp(op, op.getOperand());
+  LogicalResult
+  matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+                  ConversionPatternRewriter &rewriter) const final {
+    rewriter.replaceOp(op, operands[0]);
     return success();
   }
 };

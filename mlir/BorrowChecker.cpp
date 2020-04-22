@@ -109,7 +109,6 @@ public:
       src->ref_count++;
     } else if (op->getName().getStringRef().equals("pinch.borrow_mut")) {
       assert(src);
-      llvm::dbgs() << "    Mutably Borrowing " << src->name << "\n";
 
       if (!src->is_resident) {
         op->emitError("Trying to borrow a mutable reference to already moved variable");
@@ -139,31 +138,6 @@ public:
       }
       // mark the src as empty
       src->is_resident = false;
-    } else if (op->getName().getStringRef().equals("pinch.generic_call")) {
-      llvm::dbgs() << "    calling function " << op->getAttrOfType<FlatSymbolRefAttr>("callee") << "\n";
-      for (auto itr = op->operand_begin(); itr != op->operand_end(); itr++) {
-        auto dst = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("dst");
-        llvm::dbgs() << "       arg " << dst << "\n";
-
-        // if dst is "" then it is a temp var, check src instead
-        StringRef arg_src = dst.getValue();
-        if (arg_src == "") {
-          auto sa = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("src");
-          // if src is not found, it must be a constant temp
-          if (!sa)
-            return true;
-          arg_src = sa.getValue();
-        }
-
-        // look it up in symbol table
-        if (auto ow = symbolTable.lookup(arg_src)) {
-          llvm::dbgs() << "       checking arg src " << ow->name << "\n";
-          if (!ow->is_resident) {
-            op->emitError("Trying to use value from already moved variable");
-            return false;
-          }
-        }
-      }
     }
     // else do nothing since it might be another dialect
 
@@ -231,6 +205,49 @@ public:
         } else {
           op->emitError("Could not find return source " + srcattr.getValue());
           return signalPassFailure();
+        }
+      } else if (op->getName().getStringRef().equals("pinch.print")) {
+        llvm::dbgs() << "--> borrow checking print " << op->getName() << "\n";
+        for (auto itr = op->operand_begin(); itr != op->operand_end(); itr++) {
+          auto dst = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("dst");
+
+          // if dst is "" then it is a temp var, check src instead
+          StringRef arg_src = dst.getValue();
+          if (arg_src == "") {
+            auto sa = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("src");
+            // if src is not found, it must be a constant temp
+            if (sa)
+              arg_src = sa.getValue();
+          }
+
+          // look it up in symbol table
+          if (auto ow = symbolTable.lookup(arg_src)) {
+            if (!ow->is_resident) {
+              op->emitError("Trying to use value from already moved variable");
+              return signalPassFailure();
+            }
+          }
+        }
+      } else if (op->getName().getStringRef().equals("pinch.generic_call")) {
+        for (auto itr = op->operand_begin(); itr != op->operand_end(); itr++) {
+          auto dst = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("dst");
+
+          // if dst is "" then it is a temp var, check src instead
+          StringRef arg_src = dst.getValue();
+          if (arg_src == "") {
+            auto sa = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("src");
+            // if src is not found, it must be a constant temp
+            if (sa)
+              arg_src = sa.getValue();
+          }
+
+          // look it up in symbol table
+          if (auto ow = symbolTable.lookup(arg_src)) {
+            if (!ow->is_resident) {
+              op->emitError("Trying to use value from already moved variable");
+              return signalPassFailure();
+            }
+          }
         }
       }
 
