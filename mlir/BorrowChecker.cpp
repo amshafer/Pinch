@@ -206,32 +206,11 @@ public:
           op->emitError("Could not find return source " + srcattr.getValue());
           return signalPassFailure();
         }
-      } else if (op->getName().getStringRef().equals("pinch.print")) {
+      } else if (op->getName().getStringRef().equals("pinch.print")
+                 || op->getName().getStringRef().equals("pinch.generic_call")
+                 || op->getName().getStringRef().equals("pinch.add")
+                 || op->getName().getStringRef().equals("pinch.mul")) {
         llvm::dbgs() << "--> borrow checking print " << op->getName() << "\n";
-        for (auto itr = op->operand_begin(); itr != op->operand_end(); itr++) {
-          auto dst = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("dst");
-
-          // if dst is "" then it is a temp var, check src instead
-          StringRef arg_src = dst.getValue();
-          if (arg_src == "") {
-            auto sa = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("src");
-            // if src is not found, it must be a constant temp
-            if (sa)
-              arg_src = sa.getValue();
-          }
-
-          // look it up in symbol table
-          if (auto ow = symbolTable.lookup(arg_src)) {
-            if (!ow->is_resident) {
-              op->emitError("Trying to use value from already moved variable");
-              return signalPassFailure();
-            } else if (ow->mut_ref_count > 0) {
-              op->emitError("Cannot move variable while a mutable reference has been loaned out");
-              return signalPassFailure();
-            }
-          }
-        }
-      } else if (op->getName().getStringRef().equals("pinch.generic_call")) {
         for (auto itr = op->operand_begin(); itr != op->operand_end(); itr++) {
           auto dst = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("dst");
 
