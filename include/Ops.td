@@ -51,7 +51,7 @@ def OwnedType: AnyTypeOf<[DataType, AnyRefType]>;
 // Here we provide the mnemonic and a list of traits for the operation. The
 // constant operation is marked as 'NoSideEffect' as it is a pure operation
 // and may be removed if dead.
-def ConstantOp : Pinch_Op<"constant", [NoSideEffect, ConstantLike]> {
+def ConstantOp : Pinch_Op<"constant", [NoSideEffect]> {
   // Provide a summary and description for this operation. This can be used to
   // auto-generate documentation of the operations within our dialect.
   let summary = "constant";
