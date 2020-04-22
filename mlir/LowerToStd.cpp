@@ -75,6 +75,28 @@ struct MoveOpLowering : public OpRewritePattern<pinch::MoveOp> {
   }
 };
 
+struct BorrowOpLowering : public OpRewritePattern<pinch::BorrowOp> {
+  using OpRewritePattern<pinch::BorrowOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(pinch::BorrowOp op,
+                                PatternRewriter &rewriter) const final {
+
+    rewriter.replaceOp(op, op.getOperand());
+    return success();
+  }
+};
+
+struct BorrowMutOpLowering : public OpRewritePattern<pinch::BorrowMutOp> {
+  using OpRewritePattern<pinch::BorrowMutOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(pinch::BorrowMutOp op,
+                                PatternRewriter &rewriter) const final {
+
+    rewriter.replaceOp(op, op.getOperand());
+    return success();
+  }
+};
+
 //===----------------------------------------------------------------------===//
 // PinchToStd RewritePatterns: Return operations
 //===----------------------------------------------------------------------===//
@@ -212,7 +234,8 @@ void PinchToStdLoweringPass::runOnFunction() {
   // set of legal ones.
   OwningRewritePatternList patterns;
   patterns.insert<AddOpLowering, ConstantOpLowering, MulOpLowering,
-                  ReturnOpLowering, MoveOpLowering>(&getContext());
+                  ReturnOpLowering, MoveOpLowering,
+                  BorrowOpLowering, BorrowMutOpLowering>(&getContext());
 
   // We want to completely lower to LLVM, so we use a `FullConversion`. This
   // ensures that only legal operations will remain after the conversion.
