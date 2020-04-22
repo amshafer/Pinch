@@ -225,6 +225,9 @@ public:
             if (!ow->is_resident) {
               op->emitError("Trying to use value from already moved variable");
               return signalPassFailure();
+            } else if (ow->mut_ref_count > 0) {
+              op->emitError("Cannot move variable while a mutable reference has been loaned out");
+              return signalPassFailure();
             }
           }
         }
@@ -245,6 +248,9 @@ public:
           if (auto ow = symbolTable.lookup(arg_src)) {
             if (!ow->is_resident) {
               op->emitError("Trying to use value from already moved variable");
+              return signalPassFailure();
+            } else if (ow->mut_ref_count > 0) {
+              op->emitError("Cannot move variable while a mutable reference has been loaned out");
               return signalPassFailure();
             }
           }
