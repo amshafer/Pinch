@@ -92,7 +92,6 @@ public:
              llvm::ScopedHashTable<StringRef, Owner *> &symbolTable) {
     if (op->getName().getStringRef().equals("pinch.borrow")) {
       assert(src);
-      llvm::dbgs() << "    Borrowing " << src->name << "\n";
 
       if (!src->is_resident) {
         op->emitError("Trying to borrow a reference to already moved variable");
@@ -125,7 +124,6 @@ public:
       src->mut_ref_count++;
     } else if (op->getName().getStringRef().equals("pinch.move")) {
       assert(src);
-      llvm::dbgs() << "    moving " << src->name << " to " << this->name << "\n";
 
       if (!src->is_resident) {
         op->emitError("Trying to move from already moved variable");
@@ -163,13 +161,11 @@ public:
       auto argsrcs = fsrcs.getValue();
       vector<StringRef> srcs;
       for (auto itr = argsrcs.begin(); itr != argsrcs.end(); itr++) {
-        llvm::dbgs() << "Found argument source " << (*itr).cast<StringAttr>().getValue() << "\n";
         srcs.push_back((*itr).cast<StringAttr>().getValue());
       }
 
       int i = 0;
       for (auto itr = f.args_begin(); itr != f.args_end(); itr++) {
-        llvm::dbgs() << "Found argument " << (*itr).getType() << "\n";
 
         // TODO check mutable reference args
         Owner *ow = new Owner(srcs[i], NULL,
@@ -179,13 +175,10 @@ public:
       }
     }
 
-    printf("-- starting borrow checker --\n");
-
     // Populate the worklist with the operations that need shape inference:
     // these are operations that return a dynamic shape.
     llvm::SmallPtrSet<mlir::Operation *, 16> opWorklist;
     f.walk([&](mlir::Operation *op) {
-      llvm::dbgs() << "Borrow checking " << op->getName() << "\n";
 
       auto srcattr = op->getAttrOfType<StringAttr>("src");
       // we need to handle return here since it needs access to the
@@ -193,7 +186,6 @@ public:
       if (op->getName().getStringRef().equals("pinch.return")
           && srcattr
           && srcattr.getValue() != "") {
-        llvm::dbgs() << "Returning " << srcattr.getValue() << "\n";
         // check if src is in the symbol table
         auto srcown = symbolTable.lookup(srcattr.getValue());
         if (srcown) {
@@ -210,7 +202,6 @@ public:
                  || op->getName().getStringRef().equals("pinch.generic_call")
                  || op->getName().getStringRef().equals("pinch.add")
                  || op->getName().getStringRef().equals("pinch.mul")) {
-        llvm::dbgs() << "--> borrow checking print " << op->getName() << "\n";
         for (auto itr = op->operand_begin(); itr != op->operand_end(); itr++) {
           auto dst = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("dst");
 
@@ -246,7 +237,6 @@ public:
         // This must be a newly active variable
         Owner *ow = new Owner(dst);
         assert(ow);
-        llvm::dbgs() << "    inserting into symbol table: " << dst << "\n";
         symbolTable.insert(dst, ow);
         owners.push_back(ow);
       }
@@ -272,8 +262,6 @@ public:
 
     for (auto itr = owners.begin(); itr != owners.end(); itr++) {
       Owner *ow = *itr;
-      StringRef name = ow->name;
-      llvm::dbgs() << "Found symbol " << name << "\n";
       delete ow;
     }
   }

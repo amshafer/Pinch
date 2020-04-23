@@ -198,6 +198,10 @@ private:
       builder.create<ReturnOp>(loc(funcAST.getProto()->loc()));
     }
 
+    // If this function isn't main, then set the visibility to private.
+    if (funcAST.getProto()->getName() != "main")
+      function.setVisibility(mlir::FuncOp::Visibility::Private);
+
     return function;
   }
 
@@ -243,7 +247,6 @@ private:
   /// expected to have been declared and so should have a value in the symbol
   /// table, otherwise emit an error and return nullptr.
   mlir::Value mlirGen(VariableExprAST &expr) {
-    llvm::dbgs() << "Looking up variable " << expr.getName() << "\n";
     if (auto variable = symbolTable.lookup(expr.getName()))
       return variable;
 
@@ -359,8 +362,6 @@ private:
     // Codegen the operands first.
     SmallVector<mlir::Value, 4> operands;
     for (auto &expr : call.getArgs()) {
-      if (expr->getKind() == pinch::ExprAST::Expr_Var)
-        llvm::dbgs() << "Pushing argument " << cast<VariableExprAST>(*expr).getName() << "\n";
       auto arg = mlirGen(*expr);
       if (!arg)
         return nullptr;
