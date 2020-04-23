@@ -118,9 +118,10 @@ private:
 
     // This is a generic function, the return type will be inferred later.
     // Arguments type are uniformly unranked tensors.
-    llvm::SmallVector<mlir::Type, 4> arg_types(proto.getArgs().size(),
-                                               // TODO calculate type
-                                               getType(VarType{}, location));
+    std::vector<mlir::Type> arg_types;
+    for (auto itr = proto.getArgs().begin(); itr != proto.getArgs().end(); itr++) {
+      arg_types.push_back(getType((*itr)->getType(), location));
+    }
 
     ArrayRef<mlir::Type> rt = llvm::None;
     if (proto.getReturnType().type == pinch::u32) {
@@ -131,13 +132,19 @@ private:
 
       if (proto.getReturnType().is_ref) {
         // TODO is_mut_ref
+        auto rtt =  mlir::MemRefType::get(makeArrayRef<int64_t>(1),
+                                     inttype);
+        rtt.dump();
         rt = makeArrayRef<mlir::Type>(
-            mlir::MemRefType::get(makeArrayRef<int64_t>(1),
-                                  inttype));
+            rtt
+           );
+        
       } else {
         rt = makeArrayRef<mlir::Type>(inttype);
+        inttype.dump();
       }
     }
+    
 
     std::vector<mlir::Attribute> argnames;
     for (auto itr = proto.getArgs().begin(); itr != proto.getArgs().end(); itr++) {
@@ -171,10 +178,17 @@ private:
     // Declare all the function arguments in the symbol table.
     for (const auto &name_value :
          llvm::zip(protoArgs, entryBlock.getArguments())) {
+      llvm::dbgs() << "--> Found function arg " << std::get<0>(name_value)->getName() << "\n";
       if (failed(declare(std::get<0>(name_value)->getName(),
                          std::get<1>(name_value))))
         return nullptr;
 
+      llvm::dbgs() << "--> val " << std::get<1>(name_value).getType() << "\n";
+      if (std::get<1>(name_value).getType().isa<mlir::MemRefType>()) {
+        llvm::dbgs() << "--> inserting into reftype table " << "\n";
+        reftypeTable.insert(std::get<0>(name_value)->getName(),
+                            std::get<1>(name_value).getType().cast<mlir::MemRefType>().getElementType());
+      }
     }
 
     // Set the insertion point in the builder to the beginning of the function
@@ -536,12 +550,12 @@ private:
   /// Build an MLIR type from a Pinch AST variable type (forward to the generic
   /// getType above).
   mlir::Type getType(const VarType &type, mlir::Location loc) {
-    if (type.type == Type::u32) {
-      return mlir::IntegerType::getChecked(32,
-                                           mlir::IntegerType::SignednessSemantics::Unsigned,
-                                           loc);
+    if (type.is_ref) {
+      auto inttype =  mlir::IntegerType::getChecked(32,
+                                                    mlir::IntegerType::SignednessSemantics::Unsigned,
+                                                    loc);
+      return mlir::MemRefType::get(makeArrayRef<int64_t>(1), inttype);
     } else {
-      // TODO: fixme
       return mlir::IntegerType::getChecked(32,
                                            mlir::IntegerType::SignednessSemantics::Unsigned,
                                            loc);
