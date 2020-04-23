@@ -203,7 +203,11 @@ public:
                  || op->getName().getStringRef().equals("pinch.add")
                  || op->getName().getStringRef().equals("pinch.mul")) {
         for (auto itr = op->operand_begin(); itr != op->operand_end(); itr++) {
-          auto dst = (*itr).getDefiningOp()->getAttrOfType<StringAttr>("dst");
+          auto defop = (*itr).getDefiningOp();
+          // if the defining op doesn't exist it must be an argument
+          if (!defop)
+            continue;
+          auto dst = defop->getAttrOfType<StringAttr>("dst");
 
           // if dst is "" then it is a temp var, check src instead
           StringRef arg_src = dst.getValue();
