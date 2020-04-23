@@ -218,8 +218,8 @@ def CastOp : Pinch_Op<"cast", [NoSideEffect]> {
     operation is invalid if converting to a mismatching constant dimension.
   }];
 
-  let arguments = (ins UI32:$input);
-  let results = (outs I32:$output);
+  let arguments = (ins AnyTypeOf<[UI32,MemRefOf<[AnyType]>]>:$input);
+  let results = (outs UI32:$output);
 
   let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
 

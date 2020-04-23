@@ -201,7 +201,22 @@ struct ReturnOpLowering : public OpRewritePattern<pinch::ReturnOp> {
 
     // TODO: add results
     // We lower "pinch.return" directly to "std.return".
-    rewriter.replaceOpWithNewOp<ReturnOp>(op, op.getOperands());
+    if (op.getOperands().size() == 1) {
+      Value in = op.getOperand(0);
+      if (in
+          && in.getType().isa<MemRefType>()
+          && fop.getCallableResults().size() == 1
+          && fop.getCallableResults()[0].isa<IntegerType>()) {
+        auto indexAttr =
+          rewriter.getIntegerAttr(rewriter.getIndexType(), 0);
+        Value iop = rewriter.create<ConstantOp>(op.getLoc(), indexAttr);
+
+        in = rewriter.create<LoadOp>(op.getLoc(), in, iop);
+      }
+      rewriter.replaceOpWithNewOp<ReturnOp>(op, in);
+    } else {
+      rewriter.replaceOpWithNewOp<ReturnOp>(op, op.getOperands());
+    }
 
     return success();
   }
