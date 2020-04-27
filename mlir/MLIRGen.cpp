@@ -414,7 +414,9 @@ private:
       return nullptr;
 
     auto ptrType = mlir::MemRefType::get(llvm::makeArrayRef<int64_t>(1),
+                                         /* tied to vardecl */
                                          builder.getIntegerType(32, false));
+
     return builder.create<BoxOp>(loc(call.loc()), ptrType, arg, dst);
   }
 
@@ -541,6 +543,10 @@ private:
       if (auto variable = symbolTable.lookup(expr->getName())) {
         reftypeTable.insert(vardecl.getName(), variable.getType());
       }
+    } else if (init->getKind() == pinch::ExprAST::Expr_Box) {
+      // make a mapping of what type we point to
+      reftypeTable.insert(vardecl.getName(),
+                          builder.getIntegerType(32, false));
     }
     return value;
   }
