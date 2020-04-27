@@ -208,6 +208,17 @@ def DerefOp : Pinch_Op<"deref"> {
     //let printer = [{ return ::printBinaryOp(p, *this); }];
 }
 
+def BoxOp : Pinch_Op<"box"> {
+  let summary = "heap allocation";
+  let description = [{
+      boxed heap allocation.
+  }];
+
+  // The print operation takes an input tensor to print.
+    let arguments = (ins AnyTypeOf<[UI32]>:$input, StrAttr:$dst);
+    let results = (outs RefType);
+}
+
 def CastOp : Pinch_Op<"cast", [NoSideEffect]> {
   let summary = "shape cast operation";
   let description = [{

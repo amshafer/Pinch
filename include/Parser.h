@@ -159,6 +159,11 @@ namespace pinch {
           return parseError<ExprAST>("<single arg>", "as argument to print()");
 
         return std::make_unique<PrintExprAST>(std::move(loc), std::move(args[0]));
+      } else if (name == "box") {
+        if (args.size() != 1)
+          return parseError<ExprAST>("<single arg>", "as argument to box()");
+
+        return std::make_unique<BoxExprAST>(std::move(loc), std::move(args[0]));
       }
 
       // Call to a user-defined function

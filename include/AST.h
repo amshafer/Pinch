@@ -49,6 +49,7 @@ struct VarType {
       Expr_BinOp,
       Expr_Call,
       Expr_Print,
+      Expr_Box,
     };
 
   ExprAST(ExprASTKind kind, Location location)
@@ -224,6 +225,20 @@ struct VarType {
     /// LLVM style RTTI
     static bool classof(const ExprAST *c) { return c->getKind() == Expr_Print; }
   };
+
+  /// Expression class for heap allocation
+  class BoxExprAST : public ExprAST {
+	  std::unique_ptr<ExprAST> arg;
+
+  public:
+  BoxExprAST(Location loc, std::unique_ptr<ExprAST> arg)
+      : ExprAST(Expr_Box, loc), arg(std::move(arg)) {}
+
+    ExprAST *getArg() { return arg.get(); }
+
+    /// LLVM style RTTI
+    static bool classof(const ExprAST *c) { return c->getKind() == Expr_Box; }
+  };	
 
   /// This class represents the "prototype" for a function, which captures its
   /// name, and its argument names (thus implicitly the number of arguments the

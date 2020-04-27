@@ -134,14 +134,12 @@ private:
         // TODO is_mut_ref
         auto rtt =  mlir::MemRefType::get(makeArrayRef<int64_t>(1),
                                      inttype);
-        rtt.dump();
         rt = makeArrayRef<mlir::Type>(
             rtt
            );
         
       } else {
         rt = makeArrayRef<mlir::Type>(inttype);
-        inttype.dump();
       }
     }
     
@@ -178,14 +176,11 @@ private:
     // Declare all the function arguments in the symbol table.
     for (const auto &name_value :
          llvm::zip(protoArgs, entryBlock.getArguments())) {
-      llvm::dbgs() << "--> Found function arg " << std::get<0>(name_value)->getName() << "\n";
       if (failed(declare(std::get<0>(name_value)->getName(),
                          std::get<1>(name_value))))
         return nullptr;
 
-      llvm::dbgs() << "--> val " << std::get<1>(name_value).getType() << "\n";
       if (std::get<1>(name_value).getType().isa<mlir::MemRefType>()) {
-        llvm::dbgs() << "--> inserting into reftype table " << "\n";
         reftypeTable.insert(std::get<0>(name_value)->getName(),
                             std::get<1>(name_value).getType().cast<mlir::MemRefType>().getElementType());
       }
@@ -273,6 +268,11 @@ private:
     auto location = loc(expr.loc());
 
     if (auto variable = symbolTable.lookup(expr.getName())) {
+      if (variable.getType().isa<mlir::MemRefType>()) {
+        emitError(loc(expr.loc()), "error: cannot take reference of a reference '");
+        return nullptr;
+      }
+
       auto vartype = mlir::MemRefType::get(makeArrayRef<int64_t>(1),
                                            variable.getType());
       return builder.create<BorrowOp>(location,
@@ -294,6 +294,11 @@ private:
     auto location = loc(expr.loc());
 
     if (auto variable = symbolTable.lookup(expr.getName())) {
+      if (variable.getType().isa<mlir::MemRefType>()) {
+        emitError(loc(expr.loc()), "error: cannot take reference of a reference '");
+        return nullptr;
+      }
+
       auto vartype = mlir::MemRefType::get(makeArrayRef<int64_t>(1),
                                            variable.getType());
       return builder.create<BorrowMutOp>(location,
@@ -402,6 +407,23 @@ private:
     return mlir::success();
   }
 
+  /// Emit a box allocation
+  mlir::Value mlirGen(BoxExprAST &call, StringRef dst) {
+    auto arg = mlirGen(*call.getArg());
+    if (!arg)
+      return nullptr;
+
+    auto ptrType = mlir::MemRefType::get(llvm::makeArrayRef<int64_t>(1),
+                                         builder.getIntegerType(32, false));
+    return builder.create<BoxOp>(loc(call.loc()), ptrType, arg, dst);
+  }
+
+  mlir::Value mlirGen(BoxExprAST &call) {
+    StringRef dst("");
+    return mlirGen(call, dst);
+  }
+  
+
   /// Emit a constant for a single number (FIXME: semantic? broadcast?)
   mlir::Value mlirGen(NumberExprAST &num) {
     StringRef name("");
@@ -424,6 +446,8 @@ private:
       return mlirGen(cast<VariableMutRefExprAST>(expr));
     case pinch::ExprAST::Expr_Deref:
       return mlirGen(cast<DerefExprAST>(expr));
+    case pinch::ExprAST::Expr_Box:
+      return mlirGen(cast<BoxExprAST>(expr));
     case pinch::ExprAST::Expr_Call:
       return mlirGen(cast<CallExprAST>(expr));
     case pinch::ExprAST::Expr_Num:
@@ -449,6 +473,8 @@ private:
       return mlirGen(cast<VariableMutRefExprAST>(expr), dst);
     case pinch::ExprAST::Expr_Deref:
       return mlirGen(cast<DerefExprAST>(expr), dst);
+    case pinch::ExprAST::Expr_Box:
+      return mlirGen(cast<BoxExprAST>(expr), dst);
     case pinch::ExprAST::Expr_Call:
       return mlirGen(cast<CallExprAST>(expr), dst);
     case pinch::ExprAST::Expr_Num:
@@ -532,8 +558,10 @@ private:
           return mlir::failure();
         continue;
       }
+
       if (auto *ret = dyn_cast<ReturnExprAST>(expr.get()))
         return mlirGen(*ret);
+
       if (auto *print = dyn_cast<PrintExprAST>(expr.get())) {
         if (mlir::failed(mlirGen(*print)))
           return mlir::success();
