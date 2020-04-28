@@ -101,6 +101,16 @@ def BoxOp : Pinch_Op<"box"> {
     let verifier = [{ return ::verify(*this); }];
 }
 
+def DropOp : Pinch_Op<"drop"> {
+  let summary = "heap deallocation";
+  let description = [{
+      drop a heap allocated box
+  }];
+
+  // The print operation takes an input tensor to print.
+  let arguments = (ins RefType:$value);
+}
+
 def AddOp : Pinch_Op<"add"> {
   let summary = "addition operation";
   let description = [{

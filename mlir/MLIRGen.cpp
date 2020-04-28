@@ -96,6 +96,8 @@ private:
   /// Map a reference to the type it points to
   llvm::ScopedHashTable<StringRef, mlir::Type> reftypeTable;
 
+  std::vector<mlir::Value> vals_to_drop;
+
   /// Helper conversion for a Pinch AST location to an MLIR location.
   mlir::Location loc(Location loc) {
     return builder.getFileLineColLoc(builder.getIdentifier(*loc.file), loc.line,
@@ -161,6 +163,7 @@ private:
     // Create a scope in the symbol table to hold variable declarations.
     ScopedHashTableScope<llvm::StringRef, mlir::Value> var_scope(symbolTable);
     ScopedHashTableScope<llvm::StringRef, mlir::Type> ref_scope(reftypeTable);
+    vals_to_drop.clear();
 
     // Create an MLIR function for the given prototype.
     mlir::FuncOp function(mlirGen(*funcAST.getProto()));
@@ -195,6 +198,12 @@ private:
     if (mlir::failed(mlirGen(*funcAST.getBody()))) {
       function.erase();
       return nullptr;
+    }
+
+    // drop any heap values
+    for (auto itr = vals_to_drop.begin(); itr != vals_to_drop.end(); itr++) {
+      llvm::dbgs() << "Dropping value :" << *itr << "\n";
+      builder.create<DropOp>(loc(funcAST.getProto()->loc()), *itr);
     }
 
     // Implicitly return void if no return statement was emitted.
@@ -411,7 +420,9 @@ private:
   mlir::Value mlirGen(BoxExprAST &call, StringRef dst) {
     auto val = cast<NumberExprAST>(call.getArg())->getValue();
 
-    return builder.create<BoxOp>(loc(call.loc()), dst, val);
+    auto nop = builder.create<BoxOp>(loc(call.loc()), dst, val);
+    vals_to_drop.push_back(nop);
+    return nop;
   }
 
   mlir::Value mlirGen(BoxExprAST &call) {
