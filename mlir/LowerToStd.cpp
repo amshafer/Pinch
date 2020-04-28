@@ -68,7 +68,7 @@ struct BoxOpLowering : public OpRewritePattern<pinch::BoxOp> {
 
   LogicalResult matchAndRewrite(pinch::BoxOp op,
                                 PatternRewriter &rewriter) const final {
-    auto constantValue = op.input();
+    auto constantValue = op.value();
 
     auto indexAttr =
       rewriter.getIntegerAttr(rewriter.getIndexType(), 0);

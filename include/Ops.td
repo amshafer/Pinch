@@ -82,6 +82,25 @@ def ConstantOp : Pinch_Op<"constant", [NoSideEffect]> {
   let verifier = [{ return ::verify(*this); }];
 }
 
+def BoxOp : Pinch_Op<"box"> {
+  let summary = "heap allocation";
+  let description = [{
+      boxed heap allocation.
+  }];
+
+  // The print operation takes an input tensor to print.
+  let arguments = (ins UI32Attr:$value, StrAttr:$dst);
+  let results = (outs RefType);
+
+  let builders = [
+    // Build a constant with a given constant int
+    OpBuilder<"Builder *builder, OperationState &state, StringRef dst, unsigned int value">,
+  ];
+
+    // Invoke a static verify method to verify this constant operation.
+    let verifier = [{ return ::verify(*this); }];
+}
+
 def AddOp : Pinch_Op<"add"> {
   let summary = "addition operation";
   let description = [{
@@ -206,17 +225,6 @@ def DerefOp : Pinch_Op<"deref"> {
   // Specify a parser and printer method.
   //let parser = [{ return ::parseBinaryOp(parser, result); }];
     //let printer = [{ return ::printBinaryOp(p, *this); }];
-}
-
-def BoxOp : Pinch_Op<"box"> {
-  let summary = "heap allocation";
-  let description = [{
-      boxed heap allocation.
-  }];
-
-  // The print operation takes an input tensor to print.
-    let arguments = (ins AnyTypeOf<[UI32]>:$input, StrAttr:$dst);
-    let results = (outs RefType);
 }
 
 def CastOp : Pinch_Op<"cast", [NoSideEffect]> {

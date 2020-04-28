@@ -180,6 +180,23 @@ static mlir::LogicalResult verify(ConstantOp op) {
 }
 
 //===----------------------------------------------------------------------===//
+// BoxOp
+void BoxOp::build(mlir::Builder *builder, mlir::OperationState &state,
+                  StringRef dst, unsigned int value) {
+  auto inttype = builder->getIntegerType(32, false);
+  auto ty = mlir::MemRefType::get(llvm::makeArrayRef<int64_t>(1), inttype);
+  state.addTypes(ty);
+  state.addAttribute("value", IntegerAttr::get(inttype, value));
+  state.addAttribute("dst", builder->getStringAttr(dst));
+}
+
+/// Verifier for the constant operation. This corresponds to the `::verify(...)`
+/// in the op definition.
+static mlir::LogicalResult verify(BoxOp op) {
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // AddOp
 
 void AddOp::build(mlir::Builder *builder, mlir::OperationState &state,

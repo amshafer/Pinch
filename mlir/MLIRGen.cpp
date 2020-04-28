@@ -409,15 +409,9 @@ private:
 
   /// Emit a box allocation
   mlir::Value mlirGen(BoxExprAST &call, StringRef dst) {
-    auto arg = mlirGen(*call.getArg());
-    if (!arg)
-      return nullptr;
+    auto val = cast<NumberExprAST>(call.getArg())->getValue();
 
-    auto ptrType = mlir::MemRefType::get(llvm::makeArrayRef<int64_t>(1),
-                                         /* tied to vardecl */
-                                         builder.getIntegerType(32, false));
-
-    return builder.create<BoxOp>(loc(call.loc()), ptrType, arg, dst);
+    return builder.create<BoxOp>(loc(call.loc()), dst, val);
   }
 
   mlir::Value mlirGen(BoxExprAST &call) {
