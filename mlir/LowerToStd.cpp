@@ -89,6 +89,17 @@ struct BoxOpLowering : public OpRewritePattern<pinch::BoxOp> {
   }
 };
 
+struct DropOpLowering : public OpRewritePattern<pinch::DropOp> {
+  using OpRewritePattern<pinch::DropOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(pinch::DropOp op,
+                                PatternRewriter &rewriter) const final {
+    rewriter.replaceOpWithNewOp<DeallocOp>(op, op.getOperand());
+
+    return success();
+  }
+};
+
 struct CastOpLowering : public OpRewritePattern<pinch::CastOp> {
   using OpRewritePattern<pinch::CastOp>::OpRewritePattern;
 
@@ -324,7 +335,7 @@ void PinchToStdLoweringPass::runOnFunction() {
                   ReturnOpLowering, MoveOpLowering,
                   BorrowOpLowering, BorrowMutOpLowering,
                   DerefOpLowering, CastOpLowering,
-                  BoxOpLowering>(&getContext());
+                  BoxOpLowering, DropOpLowering>(&getContext());
 
   // We want to completely lower to LLVM, so we use a `FullConversion`. This
   // ensures that only legal operations will remain after the conversion.
