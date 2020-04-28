@@ -396,6 +396,24 @@ private:
       auto arg = mlirGen(*expr);
       if (!arg)
         return nullptr;
+
+      // if this argument is a box, generate a move for it
+      if (arg.getType().isa<BoxType>()) {
+        auto src = cast<VariableExprAST>(*expr);
+        llvm::dbgs() << "Found src " << src.getName() << "\n";
+        arg = builder.create<MoveOp>(location,
+                                     arg,
+                                     src.getName(),
+                                     StringRef(""));
+
+        // now remove it from the list of droppables
+        if (auto variable = symbolTable.lookup(src.getName())) {
+          vals_to_drop.erase(std::remove(
+                                 vals_to_drop.begin(), vals_to_drop.end(), variable),
+                             vals_to_drop.end());
+        }
+      }
+
       operands.push_back(arg);
     }
 
