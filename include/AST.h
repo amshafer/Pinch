@@ -28,6 +28,7 @@ namespace pinch {
 enum Type {
   null,
   u32,
+  box,
 };
 
 struct VarType {

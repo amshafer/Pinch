@@ -186,6 +186,9 @@ private:
       if (std::get<1>(name_value).getType().isa<mlir::MemRefType>()) {
         reftypeTable.insert(std::get<0>(name_value)->getName(),
                             std::get<1>(name_value).getType().cast<mlir::MemRefType>().getElementType());
+      } else if (std::get<1>(name_value).getType().isa<BoxType>()) {
+        reftypeTable.insert(std::get<0>(name_value)->getName(),
+                            std::get<1>(name_value).getType().cast<BoxType>().getElementType());
       }
     }
 
@@ -594,6 +597,8 @@ private:
                                                     mlir::IntegerType::SignednessSemantics::Unsigned,
                                                     loc);
       return mlir::MemRefType::get(makeArrayRef<int64_t>(1), inttype);
+    } else if (type.type == Type::box) {
+      return BoxType::get(loc);
     } else {
       return mlir::IntegerType::getChecked(32,
                                            mlir::IntegerType::SignednessSemantics::Unsigned,

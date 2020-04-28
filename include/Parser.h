@@ -254,6 +254,9 @@ namespace pinch {
       if (lexer.getCurToken() == tok_u32) {
         type->type = Type::u32;
         type->is_ref = false;
+      } else if (lexer.getCurToken() == tok_box) {
+        type->type = Type::box;
+        type->is_ref = false;
       } else if (lexer.getCurToken() == tok_ref
                  || lexer.getCurToken() == tok_mut) {
         if (lexer.getId() == "u32")

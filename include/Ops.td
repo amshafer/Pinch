@@ -38,10 +38,12 @@ Op<Pinch_Dialect, mnemonic, traits>;
 
 def RefType: MemRefOf<[AnyType]>;
 def MutRefType: MemRefOf<[AnyType]>;
-def AnyRefType: AnyTypeOf<[RefType, MutRefType]>;
+def BoxType : Type<CPred<"$_self.isa<BoxType>()">, "box type">;
+def AnyRefType: AnyTypeOf<[BoxType, RefType, MutRefType]>;
 
 def DataType: AnyTypeOf<[UI32]>;
-def OwnedType: AnyTypeOf<[DataType, AnyRefType]>;
+def OwnedType: AnyTypeOf<[BoxType, DataType, AnyRefType]>;
+
 
 //===----------------------------------------------------------------------===//
 // Pinch Operations
@@ -90,7 +92,7 @@ def BoxOp : Pinch_Op<"box"> {
 
   // The print operation takes an input tensor to print.
   let arguments = (ins UI32Attr:$value, StrAttr:$dst);
-  let results = (outs RefType);
+  let results = (outs BoxType);
 
   let builders = [
     // Build a constant with a given constant int
@@ -108,7 +110,7 @@ def DropOp : Pinch_Op<"drop"> {
   }];
 
   // The print operation takes an input tensor to print.
-  let arguments = (ins RefType:$value);
+  let arguments = (ins BoxType:$value);
 }
 
 def AddOp : Pinch_Op<"add"> {

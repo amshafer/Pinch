@@ -197,6 +197,8 @@ void ASTDumper::dump(const VarType &type) {
     llvm::errs() << "&";
   if (type.type == Type::u32)
     llvm::errs() << "u32";
+  if (type.type == Type::box)
+    llvm::errs() << "Box";
   else if (type.type == Type::null)
     llvm::errs() << "void";
 }

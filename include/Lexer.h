@@ -58,6 +58,7 @@ namespace pinch {
 
       tok_arrow = -7,
       tok_u32 = -8,
+      tok_box = -9,
       };
 
   /// The Lexer is an abstract base class providing all the facilities that the
@@ -195,6 +196,8 @@ namespace pinch {
           return tok_let;
         if (identifierStr == "u32")
           return tok_u32;
+	if (identifierStr == "Box")
+          return tok_box;
         return tok_identifier;
       }
 

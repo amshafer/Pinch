@@ -65,6 +65,31 @@ struct PinchInlinerInterface : public DialectInlinerInterface {
   }
 };
 
+/// Parse an instance of a type registered to the toy dialect.
+mlir::Type PinchDialect::parseType(mlir::DialectAsmParser &parser) const {
+  // Parse a box type in the following form:
+  //   box-type ::= `box`
+
+  // NOTE: All MLIR parser function return a ParseResult. This is a
+  // specialization of LogicalResult that auto-converts to a `true` boolean
+  // value on failure to allow for chaining, but may be used with explicit
+  // `mlir::failed/mlir::succeeded` as desired.
+
+  // Parse: `struct` `<`
+  if (parser.parseKeyword("box") || parser.parseLess())
+    return Type();
+
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  return BoxType::get(loc);
+}
+
+void PinchDialect::printType(mlir::Type type,
+                             mlir::DialectAsmPrinter &printer) const {
+  // Print the struct type according to the parser format.
+  if (type.isa<BoxType>())
+    printer << "box";
+}
+
 //===----------------------------------------------------------------------===//
 // PinchDialect
 //===----------------------------------------------------------------------===//
@@ -77,6 +102,7 @@ PinchDialect::PinchDialect(mlir::MLIRContext *ctx) : mlir::Dialect("pinch", ctx)
 #include "Ops.cpp.inc"
       >();
   addInterfaces<PinchInlinerInterface>();
+  addTypes<BoxType>();
 }
 
 //===----------------------------------------------------------------------===//
@@ -184,7 +210,7 @@ static mlir::LogicalResult verify(ConstantOp op) {
 void BoxOp::build(mlir::Builder *builder, mlir::OperationState &state,
                   StringRef dst, unsigned int value) {
   auto inttype = builder->getIntegerType(32, false);
-  auto ty = mlir::MemRefType::get(llvm::makeArrayRef<int64_t>(1), inttype);
+  auto ty = BoxType::get(builder->getUnknownLoc());
   state.addTypes(ty);
   state.addAttribute("value", IntegerAttr::get(inttype, value));
   state.addAttribute("dst", builder->getStringAttr(dst));
