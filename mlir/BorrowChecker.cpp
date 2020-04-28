@@ -49,9 +49,21 @@ namespace {
 
 enum OwType {
   u32 = 0,
+  box,
   ref,
   mut,
 };
+
+enum OwType
+owtype_from_type(Type ty)
+{
+  if (ty.isa<MemRefType>())
+    return OwType::ref;
+  else if (ty.isa<BoxType>())
+    return OwType::box;
+  else
+    return OwType::u32;
+}
 
 /// Ownership information for a particular variable
 class Owner {
@@ -122,20 +134,13 @@ public:
       }
       this->type = OwType::mut;
       src->mut_ref_count++;
-    } else if (op->getName().getStringRef().equals("pinch.move")) {
+    } else if (op->getName().getStringRef().equals("pinch.deref")) {
       assert(src);
 
       if (!src->is_resident) {
-        op->emitError("Trying to move from already moved variable");
+        op->emitError("Trying to dereference already moved variable");
         return false;
       }
-
-      if (src->mut_ref_count > 0 || src->ref_count > 0) {
-        op->emitError("Invalid move after borrow");
-        return false;
-      }
-      // mark the src as empty
-      src->is_resident = false;
     }
     // else do nothing since it might be another dialect
 
@@ -169,7 +174,7 @@ public:
 
         // TODO check mutable reference args
         Owner *ow = new Owner(srcs[i], NULL,
-                             (*itr).getType().isa<MemRefType>() ? OwType::ref: OwType::u32);
+                              owtype_from_type((*itr).getType()));
         symbolTable.insert(srcs[i], ow);
         i++;
       }
@@ -207,6 +212,12 @@ public:
           // if the defining op doesn't exist it must be an argument
           if (!defop)
             continue;
+
+          // if the defining op is a box ignore it since we already tracked its
+          // move
+          if (defop->getResult(0).getType().isa<BoxType>())
+            continue;
+
           auto dst = defop->getAttrOfType<StringAttr>("dst");
 
           // if dst is "" then it is a temp var, check src instead
@@ -229,7 +240,24 @@ public:
             }
           }
         }
-      }
+      } else if (op->getName().getStringRef().equals("pinch.move")
+                 && srcattr
+                 && srcattr.getValue() != "") {
+        if (auto ow = symbolTable.lookup(srcattr.getValue())) {
+          
+          if (!ow->is_resident) {
+            op->emitError("Trying to move from already moved variable");
+            return signalPassFailure();
+          }
+
+          if (ow->mut_ref_count > 0 || ow->ref_count > 0) {
+            op->emitError("Invalid move after borrow");
+            return signalPassFailure();
+          }
+          // mark the src as empty
+          ow->is_resident = false;
+        }
+    }
 
       // check the destination
       auto dstattr = op->getAttrOfType<StringAttr>("dst");
