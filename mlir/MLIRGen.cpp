@@ -189,6 +189,9 @@ private:
       } else if (std::get<1>(name_value).getType().isa<BoxType>()) {
         reftypeTable.insert(std::get<0>(name_value)->getName(),
                             std::get<1>(name_value).getType().cast<BoxType>().getElementType());
+
+        // mark these boxes as droppable
+        vals_to_drop.push_back(std::get<1>(name_value));
       }
     }
 
@@ -203,12 +206,6 @@ private:
       return nullptr;
     }
 
-    // drop any heap values
-    for (auto itr = vals_to_drop.begin(); itr != vals_to_drop.end(); itr++) {
-      llvm::dbgs() << "Dropping value :" << *itr << "\n";
-      builder.create<DropOp>(loc(funcAST.getProto()->loc()), *itr);
-    }
-
     // Implicitly return void if no return statement was emitted.
     // FIXME: we may fix the parser instead to always return the last expression
     // (this would possibly help the REPL case later)
@@ -216,6 +213,12 @@ private:
     if (!entryBlock.empty())
       returnOp = dyn_cast<ReturnOp>(entryBlock.back());
     if (!returnOp) {
+      // drop any heap values first
+      for (auto itr = vals_to_drop.begin(); itr != vals_to_drop.end(); itr++) {
+        llvm::dbgs() << "Dropping value :" << *itr << "\n";
+        builder.create<DropOp>(loc(funcAST.getProto()->loc()), *itr);
+      }
+
       builder.create<ReturnOp>(loc(funcAST.getProto()->loc()));
     }
 
@@ -591,8 +594,15 @@ private:
         continue;
       }
 
-      if (auto *ret = dyn_cast<ReturnExprAST>(expr.get()))
+      if (auto *ret = dyn_cast<ReturnExprAST>(expr.get())) {
+        // drop any heap values first
+        for (auto itr = vals_to_drop.begin(); itr != vals_to_drop.end(); itr++) {
+          llvm::dbgs() << "Dropping value :" << *itr << "\n";
+          builder.create<DropOp>(loc(ret->loc()), *itr);
+        }
+
         return mlirGen(*ret);
+      }
 
       if (auto *print = dyn_cast<PrintExprAST>(expr.get())) {
         if (mlir::failed(mlirGen(*print)))
