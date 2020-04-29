@@ -215,7 +215,6 @@ private:
     if (!returnOp) {
       // drop any heap values first
       for (auto itr = vals_to_drop.begin(); itr != vals_to_drop.end(); itr++) {
-        llvm::dbgs() << "Dropping value :" << *itr << "\n";
         builder.create<DropOp>(loc(funcAST.getProto()->loc()), *itr);
       }
 
@@ -403,7 +402,6 @@ private:
       // if this argument is a box, generate a move for it
       if (arg.getType().isa<BoxType>()) {
         auto src = cast<VariableExprAST>(*expr);
-        llvm::dbgs() << "Found src " << src.getName() << "\n";
         arg = builder.create<MoveOp>(location,
                                      arg,
                                      src.getName(),
@@ -597,7 +595,6 @@ private:
       if (auto *ret = dyn_cast<ReturnExprAST>(expr.get())) {
         // drop any heap values first
         for (auto itr = vals_to_drop.begin(); itr != vals_to_drop.end(); itr++) {
-          llvm::dbgs() << "Dropping value :" << *itr << "\n";
           builder.create<DropOp>(loc(ret->loc()), *itr);
         }
 
