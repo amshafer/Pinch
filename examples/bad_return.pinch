@@ -1,0 +1,14 @@
+# Example of pinch lang
+
+fn bad_function() -> &u32 {
+   let ret = 3;
+   return &ret;
+}
+
+fn main() {
+   let a = 2;
+   let b = &mut a;
+   let c = &a;
+
+   let d = bad_function();
+}

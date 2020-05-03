@@ -1,4 +1,7 @@
 # Pinch
+
+https://github.com/amshafer/pinch
+
 A simple borrow-checked language built using LLVM's MLIR
 
 Multi-level Intermediate Representation (MLIR) is an LLVM project
@@ -9,31 +12,6 @@ for code generation.
 Pinch is a borrow checked language inspired by Rust. It supports very
 few operations and isn't intended for any real use. It was completed
 as a course project for my code optimization class.
-
-# Compiling
-
-This repository is designed to be dropped into the `examples` folder
-in the MLIR project. You will need to grab the latest llvm project,
-and add this directory to it.
-
-Steps:
-```
-$ git clone https://github.com/llvm/llvm-project.git
-$ cd llvm-project/mlir/examples
-$ git clone https://github.com/amshafer/pinch
-```
-
-You then need to add the following line to the `CMakeLists.txt` in
-`mlir/examples`:
-```
-add_subdirectory(pinch)
-```
-
-At this point you can go ahead and build the llvm-project as
-normal. Pinch will be picked up by the build system the same way the
-Toy examples are.
-
-See the README in llvm-project for steps to build LLVM.
 
 # Running the Pinch Compiler
 
@@ -161,3 +139,53 @@ called. Based on the borrow checking rules related to moving variables
 this is the final place the box is used. Both of the other functions
 move the box, which is why they do not generate calls to the
 `pinch.drop` operation.
+
+# Compiling
+
+This repository is designed to be dropped into the `examples` folder
+in the MLIR project. You will need to grab the latest llvm project,
+and add this directory to it.
+
+Steps:
+```
+$ git clone https://github.com/llvm/llvm-project.git
+$ cd llvm-project/mlir/examples
+$ git clone https://github.com/amshafer/pinch
+```
+
+You then need to add the following line to the `CMakeLists.txt` in
+`mlir/examples`:
+```
+add_subdirectory(pinch)
+```
+
+At this point you can go ahead and build the llvm-project as
+normal. Pinch will be picked up by the build system the same way the
+Toy examples are.
+
+See the README in llvm-project for steps to build LLVM.
+
+# Example Output
+
+Below are the expected results for all the examples in `examples` when
+executed. If you would like to get the other IR outputs please consult
+the flags to `-emit=` mentioned above.
+
+### valid.pinch
+```
+ashafer@wolfgang:git/llvm-project % ./build/bin/pinch mlir/examples/pinch/examples/valid.pinch -emit=jit 
+3 
+```
+
+### bad_return.pinch
+```
+ashafer@wolfgang:git/llvm-project % ./build/bin/pinch mlir/examples/pinch/examples/bad_return.pinch -emit=jit
+loc("mlir/examples/pinch/examples/bad_return.pinch":5:4): error: returning reference to variable whose lifetime is ending
+loc("mlir/examples/pinch/examples/bad_return.pinch":11:12): error: Cannot borrow a shared reference while a mutable reference is active
+```
+
+### box.pinch
+```
+ashafer@wolfgang:git/llvm-project % ./build/bin/pinch mlir/examples/pinch/examples/box.pinch -emit=jit 
+3 
+```

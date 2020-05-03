@@ -1,0 +1,15 @@
+fn test2(a: Box) -> u32 {
+   return 3;
+}
+
+fn test(a: Box) -> u32 {
+   let b = *a;
+   test2(a);
+   print(b);
+   return b;
+}
+
+fn main() {
+   let a = box(3);
+   test(a);
+}
